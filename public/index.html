@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Farm - ระบบสมาชิก</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; font-family:'Kanit',sans-serif; }
 body { height:100vh; display:flex; justify-content:center; align-items:center; background:linear-gradient(135deg,#4CAF50,#2E7D32); }
@@ -30,7 +29,7 @@ body { height:100vh; display:flex; justify-content:center; align-items:center; b
     <div class="logo">🌱</div>
     <div id="form-title" class="title">Smart Farm Login</div>
 
-    <form id="auth-form" onsubmit="handleSubmit(event)">
+    <form id="auth-form">
         <div class="input-group">
             <label>Email</label>
             <input type="email" id="email" placeholder="example@email.com" required>
@@ -43,26 +42,30 @@ body { height:100vh; display:flex; justify-content:center; align-items:center; b
     </form>
 
     <div id="message-display" class="message"></div>
-    <div id="toggle-view" class="toggle-link" onclick="toggleForm()">ยังไม่มีบัญชี? สมัครสมาชิกที่นี่</div>
+    <div id="toggle-view" class="toggle-link">ยังไม่มีบัญชี? สมัครสมาชิกที่นี่</div>
 </div>
-<script>
-// คีย์เชื่อมต่อถูกต้องสมบูรณ์แล้วครับ
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
 const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
 
-// ✅ เปลี่ยนเป็น supabase.createClient (ใช้ s ตัวเล็ก) เรียบร้อยแล้ว
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let isLoginMode = true;
 
-function toggleForm() {
+const formTitle = document.getElementById("form-title");
+const btnSubmit = document.getElementById("btn-submit");
+const toggleView = document.getElementById("toggle-view");
+const messageDisplay = document.getElementById("message-display");
+const authForm = document.getElementById("auth-form");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+
+// ผูกฟังก์ชันคลิกสลับหน้าจอผ่าน JavaScript โดยตรง ป้องกันปุ่มนิ่ง
+toggleView.addEventListener("click", () => {
     isLoginMode = !isLoginMode;
-    const formTitle = document.getElementById("form-title");
-    const btnSubmit = document.getElementById("btn-submit");
-    const toggleView = document.getElementById("toggle-view");
-    const messageDisplay = document.getElementById("message-display");
-    
     messageDisplay.innerText = "";
-    
     if (isLoginMode) {
         formTitle.innerText = "Smart Farm Login";
         btnSubmit.innerText = "เข้าสู่ระบบ";
@@ -72,14 +75,11 @@ function toggleForm() {
         btnSubmit.innerText = "ลงทะเบียน";
         toggleView.innerText = "มีบัญชีอยู่แล้ว? เข้าสู่ระบบที่นี่";
     }
-}
+});
 
-async function handleSubmit(event) {
+// ผูกฟังก์ชันตอนกดส่งฟอร์ม
+authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const messageDisplay = document.getElementById("message-display");
-
     const email = emailInput.value.trim();
     const password = passwordInput.value;
     
@@ -87,7 +87,7 @@ async function handleSubmit(event) {
     messageDisplay.className = "message";
 
     if (isLoginMode) {
-        // 🚀 สั่งล็อกอินผ่าน Supabase
+        // 🚀 สั่งล็อกอิน
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
@@ -99,14 +99,10 @@ async function handleSubmit(event) {
         } else {
             messageDisplay.innerText = "เข้าสู่ระบบสำเร็จ! กำลังพาไปหน้าควบคุม...";
             messageDisplay.classList.add("success-text");
-            
-            // ล็อกอินผ่านปุ๊บ ส่งพุ่งตรงไปที่หน้าควบคุมทันที
-            setTimeout(() => { 
-                window.location.href = "control.html"; 
-            }, 1500);
+            setTimeout(() => { window.location.href = "control.html"; }, 1500);
         }
     } else {
-        // 🚀 สั่งลงทะเบียนผ่าน Supabase แบบธรรมดา
+        // 🚀 สั่งลงทะเบียน
         const { data, error } = await supabase.auth.signUp({
             email: email,
             password: password,
@@ -119,13 +115,18 @@ async function handleSubmit(event) {
             messageDisplay.innerText = "ลงทะเบียนสำเร็จเรียบร้อยแล้ว!";
             messageDisplay.classList.add("success-text");
             setTimeout(() => {
-                toggleForm();
+                // รีเซ็ตหน้าจอกลับมาโหมดล็อกอิน
+                isLoginMode = true;
+                formTitle.innerText = "Smart Farm Login";
+                btnSubmit.innerText = "เข้าสู่ระบบ";
+                toggleView.innerText = "ยังไม่มีบัญชี? สมัครสมาชิกที่นี่";
                 emailInput.value = "";
                 passwordInput.value = "";
+                messageDisplay.innerText = "";
             }, 2000);
         }
     }
-}
+});
 </script>
 </body>
 </html>
