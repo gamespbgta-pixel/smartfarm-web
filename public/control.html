@@ -261,7 +261,6 @@ function createDeviceUI(d){
     slot.classList.remove("empty");
     slot.dataset.pin=d.pin;
     
-    // บังคับทำ .trim() และ .toUpperCase() ป้องกันข้อผิดพลาดตอนแสดงผลปุ่ม
     const cleanOn = d.on.trim();
     const cleanOff = d.off.trim();
     const cleanState = d.state.trim().toLowerCase();
@@ -288,7 +287,6 @@ function createDeviceUI(d){
 }
 
 function addDevice(){
-    // แก้ไข: บังคับตัดช่องว่างออกทั้งหมดตั้งแต่ขั้นตอนพิมพ์เพิ่มอุปกรณ์ลงระบบ
     const name=deviceName.value.trim();
     const on=onKey.value.trim();
     const off=offKey.value.trim();
@@ -354,7 +352,7 @@ function toggleDevice(pin){
 }
 
 //////////////////////////////////////////////////
-// VOICE UNIVERSAL SYSTEM (ฉบับแก้คำเปิดนิ่งสนิท)
+// VOICE UNIVERSAL SYSTEM (ฉบับแก้ไขคำสั่งเสียงตีกันเอง)
 //////////////////////////////////////////////////
 
 let recognition;
@@ -381,27 +379,31 @@ function startVoice(){
     recognition.start();
 
     recognition.onresult=(event)=>{
-        // ดึงเสียงพูดมาทำความสะอาด ลบช่องว่างหัวท้ายออกให้เกลี้ยง
+        // ดึงข้อความเสียง ตัดเว้นวรรคหัวท้ายออกให้เกลี้ยง
         const text = event.results[0][0].transcript.toLowerCase().trim();
         voiceText.innerText = "คุณพูดว่า: " + text;
 
         console.log("เสียงที่ได้ยินจริงคือ: '" + text + "'");
 
         devices.forEach(d=>{
-            // ลบช่องว่างหัวท้ายคำเปิด-ปิดของอุปกรณ์ที่ดึงมาจากฐานข้อมูลด้วยเพื่อความชัวร์
             const wordOn = d.on.toLowerCase().trim();
             const wordOff = d.off.toLowerCase().trim();
 
-            console.log("กำลังเทียบคำพูด '" + text + "' กับคำเปิด '" + wordOn + "' และคำปิด '" + wordOff + "'");
-
-            // แก้ไข: ตรวจสอบแบบคลอบคลุม (คำพูดตรงเป๊ะ หรือ มีคำสั่งนั้นรวมอยู่ในประโยค)
-            if(text === wordOn || text.includes(wordOn) || wordOn.includes(text)){
-                console.log("🎯 สั่งเปิดสำเร็จสำหรับขา GPIO: " + d.pin);
+            // ปรับปรุงเงื่อนไขใหม่: ตรวจสอบแบบจับคู่คำเป๊ะๆ (Strict Matching) 
+            // เพื่อไม่ให้คำว่า "เปิด" ไปตีกับคำว่า "เปิดพัดลม"
+            if(text === wordOn) {
+                console.log("🎯 สั่งเปิดสำเร็จ (ตรงเป๊ะ) ขา GPIO: " + d.pin);
+                setDeviceState(d.pin, "on", true);
+            } else if(wordOn.length > 2 && text.includes(wordOn)) {
+                console.log("🎯 สั่งเปิดสำเร็จ (รวมคำยาว) ขา GPIO: " + d.pin);
                 setDeviceState(d.pin, "on", true);
             }
             
-            if(text === wordOff || text.includes(wordOff) || wordOff.includes(text)){
-                console.log("🎯 สั่งปิดสำเร็จสำหรับขา GPIO: " + d.pin);
+            if(text === wordOff) {
+                console.log("🎯 สั่งปิดสำเร็จ (ตรงเป๊ะ) ขา GPIO: " + d.pin);
+                setDeviceState(d.pin, "off", true);
+            } else if(wordOff.length > 2 && text.includes(wordOff)) {
+                console.log("🎯 สั่งปิดสำเร็จ (รวมคำยาว) ขา GPIO: " + d.pin);
                 setDeviceState(d.pin, "off", true);
             }
         });
