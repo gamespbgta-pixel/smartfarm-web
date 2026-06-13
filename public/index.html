@@ -3,154 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Smart Farm Login</title>
-
+<title>Smart Farm - ระบบสมาชิก</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Kanit',sans-serif;
-}
-
-body{
-    height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    background:linear-gradient(135deg,#4CAF50,#2E7D32);
-}
-
-.login-box{
-    width:350px;
-    background:white;
-    padding:30px;
-    border-radius:20px;
-    box-shadow:0 10px 25px rgba(0,0,0,.2);
-}
-
-.logo{
-    text-align:center;
-    font-size:32px;
-    margin-bottom:10px;
-}
-
-.title{
-    text-align:center;
-    font-size:24px;
-    font-weight:600;
-    margin-bottom:25px;
-    color:#2E7D32;
-}
-
-.input-group{
-    margin-bottom:15px;
-}
-
-.input-group label{
-    display:block;
-    margin-bottom:5px;
-    color: #555;
-}
-
-.input-group input{
-    width:100%;
-    padding:12px;
-    border:1px solid #ccc;
-    border-radius:10px;
-    font-size:16px;
-    outline: none;
-}
-
-.input-group input:focus {
-    border-color: #4CAF50;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
-}
-
-.btn-login{
-    width:100%;
-    padding:12px;
-    border:none;
-    border-radius:10px;
-    background:#4CAF50;
-    color:white;
-    font-size:18px;
-    cursor:pointer;
-    transition:.3s;
-    margin-top: 10px;
-}
-
-.btn-login:hover{
-    background:#388E3C;
-}
-
-.error{
-    text-align:center;
-    color:red;
-    margin-top:15px;
-    font-size:14px;
-    min-height: 20px; /* จองพื้นที่ไว้ไม่ให้กล่องขยับตอนแสดงข้อความผิดพลาด */
-}
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Kanit',sans-serif; }
+body { height:100vh; display:flex; justify-content:center; align-items:center; background:linear-gradient(135deg,#4CAF50,#2E7D32); }
+.container-box { width:350px; background:white; padding:30px; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,.2); }
+.logo { text-align:center; font-size:32px; margin-bottom:10px; }
+.title { text-align:center; font-size:24px; font-weight:600; margin-bottom:25px; color:#2E7D32; }
+.input-group { margin-bottom:15px; }
+.input-group label { display:block; margin-bottom:5px; color: #555; }
+.input-group input { width:100%; padding:12px; border:1px solid #ccc; border-radius:10px; font-size:16px; outline: none; }
+.input-group input:focus { border-color: #4CAF50; box-shadow: 0 0 5px rgba(76, 175, 80, 0.3); }
+.btn-action { width:100%; padding:12px; border:none; border-radius:10px; background:#4CAF50; color:white; font-size:18px; cursor:pointer; transition:.3s; margin-top: 10px; }
+.btn-action:hover { background:#388E3C; }
+.message { text-align:center; margin-top:15px; font-size:14px; min-height: 20px; }
+.error-text { color: red; }
+.success-text { color: green; }
+.toggle-link { text-align:center; margin-top:15px; font-size:14px; color:#2E7D32; cursor:pointer; text-decoration:underline; }
 </style>
 </head>
-
 <body>
 
-<div class="login-box">
-
+<div class="container-box">
     <div class="logo">🌱</div>
+    <div id="form-title" class="title">Smart Farm Login</div>
 
-    <div class="title">
-        Smart Farm Login
-    </div>
-
-    <form onsubmit="event.preventDefault(); login();">
+    <form id="auth-form" onsubmit="handleSubmit(event)">
         <div class="input-group">
-            <label>Username</label>
-            <input type="text" id="username" required autocomplete="username">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="example@email.com" required>
         </div>
-
         <div class="input-group">
-            <label>Password</label>
-            <input type="password" id="password" required autocomplete="current-password">
+            <label>Password (6 ตัวขึ้นไป)</label>
+            <input type="password" id="password" required>
         </div>
-
-        <button type="submit" class="btn-login">
-            เข้าสู่ระบบ
-        </button>
+        <button type="submit" id="btn-submit" class="btn-action">เข้าสู่ระบบ</button>
     </form>
 
-    <div id="error" class="error"></div>
-
+    <div id="message-display" class="message"></div>
+    <div id="toggle-view" class="toggle-link" onclick="toggleForm()">ยังไม่มีบัญชี? สมัครสมาชิกที่นี่</div>
 </div>
 
 <script>
-function login(){
-    const usernameInput = document.getElementById("username");
-    const passwordInput = document.getElementById("password");
-    const errorDisplay = document.getElementById("error");
+// ⚠️ ใส่คีย์เชื่อมต่อของโปรเจกต์คุณตรงนี้ครับ
+const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co"; // ใส่ลิงก์จากรูปให้แล้วครับ
+const SUPABASE_ANON_KEY = "sb_publishable_YJyiOUz5vfZStq2s8IcOIA_S5X2jZuz";
 
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let isLoginMode = true;
 
-    // ล้างข้อความแจ้งเตือนเก่าก่อนตรวจข้อมููลใหม่
-    errorDisplay.innerText = "";
-
-    // ตรวจสอบเงื่อนไขบัญชีผู้ใช้
-    if(username === "admin" && password === "1234"){
-        // เปลี่ยนทิศทางไปหน้าแรกของระบบควบคุม (index.html)
-        window.location.href = "index.html";
+function toggleForm() {
+    isLoginMode = !isLoginMode;
+    const formTitle = document.getElementById("form-title");
+    const btnSubmit = document.getElementById("btn-submit");
+    const toggleView = document.getElementById("toggle-view");
+    const messageDisplay = document.getElementById("message-display");
+    
+    messageDisplay.innerText = "";
+    
+    if (isLoginMode) {
+        formTitle.innerText = "Smart Farm Login";
+        btnSubmit.innerText = "เข้าสู่ระบบ";
+        toggleView.innerText = "ยังไม่มีบัญชี? สมัครสมาชิกที่นี่";
     } else {
-        errorDisplay.innerText = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
-        // ล้างช่องรหัสผ่านเพื่อให้กรอกใหม่
-        passwordInput.value = "";
-        passwordInput.focus();
+        formTitle.innerText = "สมัครสมาชิกฟาร์ม";
+        btnSubmit.innerText = "ลงทะเบียน";
+        toggleView.innerText = "มีบัญชีอยู่แล้ว? เข้าสู่ระบบที่นี่";
+    }
+}
+
+async function handleSubmit(event) {
+    event.preventDefault();
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const messageDisplay = document.getElementById("message-display");
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    
+    messageDisplay.innerText = "";
+    messageDisplay.className = "message";
+
+    if (isLoginMode) {
+        // 🚀 สั่งล็อกอินผ่าน Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+
+        if (error) {
+            messageDisplay.innerText = "เกิดข้อผิดพลาด: " + error.message;
+            messageDisplay.classList.add("error-text");
+        } else {
+            messageDisplay.innerText = "เข้าสู่ระบบสำเร็จ! กำลังพาไปหน้าควบคุม...";
+            messageDisplay.classList.add("success-text");
+            
+            // ล็อกอินผ่านปุ๊บ ส่งพุ่งตรงไปที่หน้าควบคุมทันที
+            setTimeout(() => { 
+                window.location.href = "control.html"; 
+            }, 1500);
+        }
+    } else {
+        // 🚀 สั่งลงทะเบียนผ่าน Supabaseแบบธรรมดา ไม่ต้องแนบข้อมูลสิทธิ์ให้วุ่นวาย
+        const { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+        });
+
+        if (error) {
+            messageDisplay.innerText = "ลงทะเบียนไม่สำเร็จ: " + error.message;
+            messageDisplay.classList.add("error-text");
+        } else {
+            messageDisplay.innerText = "ลงทะเบียนสำเร็จเรียบร้อยแล้ว!";
+            messageDisplay.classList.add("success-text");
+            setTimeout(() => {
+                toggleForm();
+                passwordInput.value = "";
+            }, 2000);
+        }
     }
 }
 </script>
-
 </body>
 </html>
