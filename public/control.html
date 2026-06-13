@@ -152,7 +152,7 @@ cursor:pointer;
 <div class="card">
 <h3>🎙️ คำสั่งเสียง</h3>
 <button class="add" onclick="startVoice()">เริ่มพูด</button>
-<p id="voiceText">รอฟัง...</p>
+<p id="voiceText" style="font-weight: bold; color: #27ae60;">รอฟัง...</p>
 </div>
 
 <div class="card">
@@ -181,11 +181,9 @@ let lastTriggered={};
 //////////////////////////////////////////////////
 
 function connectWS(){
-    // กำหนด URL ของ Render ที่ได้จากหน้าบอร์ดของคุณโดยตรง
     const renderHost = "smartfarm-server-fuos.onrender.com";
     
     console.log("กำลังเชื่อมต่อไปยังเซิร์ฟเวอร์...");
-    // บังคับใช้ wss:// (WebSocket Secure) เพราะ Render ทำงานบน HTTPS
     ws = new WebSocket("wss://" + renderHost);
 
     ws.onopen=()=>{
@@ -207,8 +205,7 @@ function connectWS(){
     };
 
     ws.onclose=()=>{
-        console.log("การเชื่อมต่อหลุดหาย กำลังพยายามเชื่อมต่อใหม่ใน 5 วินาที... (หากเซิร์ฟเวอร์หลับค้าง อาจใช้เวลาตื่นประมาณ 50 วินาที)");
-        // ขยายเวลาเป็น 5 วินาที เพื่อไม่ให้ยิงขอเชื่อมต่อถี่เกินไปขณะเซิร์ฟเวอร์ Render กำลังบูตตัวเอง (Spin up)
+        console.log("การเชื่อมต่อหลุดหาย กำลังพยายามเชื่อมต่อใหม่ใน 5 วินาที...");
         setTimeout(connectWS, 5000);
     };
     
@@ -334,7 +331,6 @@ function setDeviceState(pin, state, send=true){
         btn.innerText=state.toUpperCase();
     }
 
-    // เพิ่มเงื่อนไขตรวจสอบตรวจสอบสถานะ WebSocket (readyState === 1 คือ OPEN) ก่อนส่งข้อมูล
     if(send && ws && ws.readyState === 1){
         ws.send(JSON.stringify({
             type:"control",
@@ -353,30 +349,37 @@ function toggleDevice(pin){
 }
 
 //////////////////////////////////////////////////
-// VOICE UNIVERSAL SYSTEM
+// VOICE UNIVERSAL SYSTEM (อัปเดตรองรับมือถือ iOS/Android)
 //////////////////////////////////////////////////
 
 let recognition;
 
 function startVoice(){
+    // ดึงคลาสเสียงสำหรับทั้ง Android (Chrome) และ iPhone (Safari)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if(!SpeechRecognition){
-        voiceText.innerText ="มือถือไม่รองรับเสียง";
-        alert("มือถือเครื่องนี้ไม่รองรับคำสั่งเสียง");
+        voiceText.innerText ="มือถือไม่รองรับระบบเสียง";
+        alert("เบราว์เซอร์หรืออุปกรณ์เครื่องนี้ไม่รองรับระบบสั่งงานด้วยเสียง");
         return;
     }
 
+    // เคลียร์ตัวแปรเก่าเพื่อป้องกันไมโครโฟนค้างบนโทรศัพท์มือถือ
+    if(recognition) {
+        try { recognition.abort(); } catch(e) {}
+    }
+
     recognition = new SpeechRecognition();
-    recognition.lang="th-TH";
-    recognition.continuous=false;
-    recognition.interimResults=false;
-    voiceText.innerText="กำลังฟัง...";
+    recognition.lang = "th-TH";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    
+    voiceText.innerText = "กำลังฟัง... พูดได้เลยครับ";
     recognition.start();
 
     recognition.onresult=(event)=>{
         const text = event.results[0][0].transcript.toLowerCase();
-        voiceText.innerText=text;
+        voiceText.innerText = "คุณพูดว่า: " + text;
 
         devices.forEach(d=>{
             if(text.includes(d.on.toLowerCase())){
@@ -388,9 +391,15 @@ function startVoice(){
         });
     };
 
+    // ดักจับและแสดงข้อผิดพลาดบนมือถือเพื่อให้แก้ไขง่ายขึ้น
     recognition.onerror=(e)=>{
-        console.log(e);
-        voiceText.innerText="ไม่สามารถใช้เสียงได้";
+        console.error(e);
+        if(e.error === 'not-allowed') {
+            voiceText.innerText = "❌ สิทธิ์เข้าถึงไมค์โดนบล็อก";
+            alert("กรุณาเปิดสิทธิ์ให้เว็บบนมือถือเข้าถึงไมโครโฟนด้วยครับ");
+        } else {
+            voiceText.innerText = "เกิดข้อผิดพลาดในการฟัง (Error: " + e.error + ")";
+        }
     };
 }
 
