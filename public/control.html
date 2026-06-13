@@ -177,7 +177,7 @@ let schedules=[];
 let lastTriggered={};
 
 //////////////////////////////////////////////////
-// WEBSOCKET (แก้ไขเพื่อเชื่อมต่อกับ Render)
+// WEBSOCKET
 //////////////////////////////////////////////////
 
 function connectWS(){
@@ -260,15 +260,21 @@ function createDeviceUI(d){
 
     slot.classList.remove("empty");
     slot.dataset.pin=d.pin;
+    
+    // บังคับทำ .trim() และ .toUpperCase() ป้องกันข้อผิดพลาดตอนแสดงผลปุ่ม
+    const cleanOn = d.on.trim();
+    const cleanOff = d.off.trim();
+    const cleanState = d.state.trim().toLowerCase();
+
     slot.innerHTML=`
         <button class="deleteBtn" onclick="deleteDevice('${d.pin}')">✕</button>
         <h4>${d.name}</h4>
-        <button class="device ${d.state}" onclick="toggleDevice('${d.pin}')">
-            ${d.state.toUpperCase()}
+        <button class="device ${cleanState}" onclick="toggleDevice('${d.pin}')">
+            ${cleanState.toUpperCase()}
         </button>
         <div class="info">GPIO: ${d.pin}</div>
-        <div class="info">🎤 เปิด: ${d.on}</div>
-        <div class="info">🎤 ปิด: ${d.off}</div>
+        <div class="info">🎤 เปิด: ${cleanOn}</div>
+        <div class="info">🎤 ปิด: ${cleanOff}</div>
         <div class="info timeInfo">
             ⏰ เปิด: -<br>
             ⏰ ปิด: -
@@ -282,6 +288,7 @@ function createDeviceUI(d){
 }
 
 function addDevice(){
+    // แก้ไข: บังคับตัดช่องว่างออกทั้งหมดตั้งแต่ขั้นตอนพิมพ์เพิ่มอุปกรณ์ลงระบบ
     const name=deviceName.value.trim();
     const on=onKey.value.trim();
     const off=offKey.value.trim();
@@ -337,8 +344,6 @@ function setDeviceState(pin, state, send=true){
             device:pin,
             status:state
         }));
-    } else if (send) {
-        console.warn("ไม่สามารถส่งคำสั่งได้เนื่องจากไม่ได้เชื่อมต่อกับเซิร์ฟเวอร์");
     }
 }
 
@@ -349,7 +354,7 @@ function toggleDevice(pin){
 }
 
 //////////////////////////////////////////////////
-// VOICE UNIVERSAL SYSTEM (ฉบับแก้ไขปุ่มไม่ทำงาน)
+// VOICE UNIVERSAL SYSTEM (ฉบับแก้คำเปิดนิ่งสนิท)
 //////////////////////////////////////////////////
 
 let recognition;
@@ -376,25 +381,27 @@ function startVoice(){
     recognition.start();
 
     recognition.onresult=(event)=>{
-        // ใช้ .trim() เพื่อตัดช่องว่างที่แฝงมากับระบบเสียงออกให้หมดซ้าย-ขวา
+        // ดึงเสียงพูดมาทำความสะอาด ลบช่องว่างหัวท้ายออกให้เกลี้ยง
         const text = event.results[0][0].transcript.toLowerCase().trim();
         voiceText.innerText = "คุณพูดว่า: " + text;
 
-        console.log("ข้อความที่ได้ยินจริง: '" + text + "'");
+        console.log("เสียงที่ได้ยินจริงคือ: '" + text + "'");
 
-        // ตรวจสอบคำสั่งเทียบกับรายการอุปกรณ์ทุกตัว
         devices.forEach(d=>{
+            // ลบช่องว่างหัวท้ายคำเปิด-ปิดของอุปกรณ์ที่ดึงมาจากฐานข้อมูลด้วยเพื่อความชัวร์
             const wordOn = d.on.toLowerCase().trim();
             const wordOff = d.off.toLowerCase().trim();
 
-            // ตรวจสอบคำเปิด
-            if(text.includes(wordOn) || text === wordOn){
-                console.log("🎯 พบคำสั่งเปิดสำหรับขา GPIO: " + d.pin);
+            console.log("กำลังเทียบคำพูด '" + text + "' กับคำเปิด '" + wordOn + "' และคำปิด '" + wordOff + "'");
+
+            // แก้ไข: ตรวจสอบแบบคลอบคลุม (คำพูดตรงเป๊ะ หรือ มีคำสั่งนั้นรวมอยู่ในประโยค)
+            if(text === wordOn || text.includes(wordOn) || wordOn.includes(text)){
+                console.log("🎯 สั่งเปิดสำเร็จสำหรับขา GPIO: " + d.pin);
                 setDeviceState(d.pin, "on", true);
             }
-            // ตรวจสอบคำปิด
-            if(text.includes(wordOff) || text === wordOff){
-                console.log("🎯 พบคำสั่งปิดสำหรับขา GPIO: " + d.pin);
+            
+            if(text === wordOff || text.includes(wordOff) || wordOff.includes(text)){
+                console.log("🎯 สั่งปิดสำเร็จสำหรับขา GPIO: " + d.pin);
                 setDeviceState(d.pin, "off", true);
             }
         });
@@ -404,7 +411,6 @@ function startVoice(){
         console.error(e);
         if(e.error === 'not-allowed') {
             voiceText.innerText = "❌ สิทธิ์เข้าถึงไมค์โดนบล็อก";
-            alert("กรุณาเปิดสิทธิ์ให้เว็บบนมือถือเข้าถึงไมโครโฟนด้วยครับ");
         } else {
             voiceText.innerText = "เกิดข้อผิดพลาดในการฟัง (Error: " + e.error + ")";
         }
