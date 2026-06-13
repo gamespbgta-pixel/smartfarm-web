@@ -3,153 +3,451 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Smart Farm Login</title>
+<title>Smart Farm</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Kanit',sans-serif;
-}
-
+*{box-sizing:border-box}
 body{
-    height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    background:linear-gradient(135deg,#4CAF50,#2E7D32);
+margin:0;
+font-family:'Kanit',sans-serif;
+background:linear-gradient(135deg,#e8f5e9,#f1f8ff);
 }
+.header{
+background:linear-gradient(135deg,#2ecc71,#27ae60);
+padding:16px 28px;
+color:#fff;
+font-size:20px;
+font-weight:600;
+position:relative;
+}
+.page2btn{
+position:absolute;
+right:20px;
+top:12px;
+background:#fff;
+color:#27ae60;
+border:none;
+padding:8px 16px;
+border-radius:12px;
+cursor:pointer;
+}
+.container{
+max-width:1300px;
+margin:auto;
+padding:30px;
+}
+.main{
+display:grid;
+grid-template-columns:2fr 1fr;
+gap:26px;
+}
+.card{
+background:#fff;
+padding:22px;
+border-radius:22px;
+box-shadow:0 10px 25px rgba(0,0,0,.08);
+margin-bottom:24px;
+}
+.device-area{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:18px;
+}
+.slot{
+border:2px dashed #cfd8dc;
+border-radius:18px;
+padding:14px;
+min-height:230px;
+text-align:center;
+position:relative;
+}
+.slot.empty{
+display:flex;
+align-items:center;
+justify-content:center;
+color:#95a5a6;
+}
+.device{
+width:90px;
+height:90px;
+border-radius:50%;
+border:none;
+font-size:18px;
+margin:12px auto;
+cursor:pointer;
+}
+.device.on{background:#2ecc71;color:#fff;}
+.device.off{background:#e74c3c;color:#fff;}
 
-.login-box{
-    width:350px;
-    background:white;
-    padding:30px;
-    border-radius:20px;
-    box-shadow:0 10px 25px rgba(0,0,0,.2);
+.deleteBtn{
+position:absolute;
+top:8px;
+right:8px;
+width:30px;
+height:30px;
+border-radius:50%;
+border:none;
+background:#e74c3c;
+color:#fff;
+font-size:18px;
+cursor:pointer;
 }
-
-.logo{
-    text-align:center;
-    font-size:32px;
-    margin-bottom:10px;
+input,select{
+width:100%;
+padding:10px;
+border-radius:14px;
+border:1px solid #ddd;
+margin-bottom:10px;
 }
-
-.title{
-    text-align:center;
-    font-size:24px;
-    font-weight:600;
-    margin-bottom:25px;
-    color:#2E7D32;
+.add{
+width:100%;
+padding:12px;
+border:none;
+border-radius:16px;
+background:#27ae60;
+color:#fff;
+cursor:pointer;
 }
-
-.input-group{
-    margin-bottom:15px;
-}
-
-.input-group label{
-    display:block;
-    margin-bottom:5px;
-    color: #555;
-}
-
-.input-group input{
-    width:100%;
-    padding:12px;
-    border:1px solid #ccc;
-    border-radius:10px;
-    font-size:16px;
-    outline: none;
-}
-
-.input-group input:focus {
-    border-color: #4CAF50;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
-}
-
-.btn-login{
-    width:100%;
-    padding:12px;
-    border:none;
-    border-radius:10px;
-    background:#4CAF50;
-    color:white;
-    font-size:18px;
-    cursor:pointer;
-    transition:.3s;
-    margin-top: 10px;
-}
-
-.btn-login:hover{
-    background:#388E3C;
-}
-
-.error{
-    text-align:center;
-    color:red;
-    margin-top:15px;
-    font-size:14px;
-    min-height: 20px; /* จองพื้นที่ไว้ไม่ให้กล่องขยับตอนแสดงข้อความผิดพลาด */
-}
+.info{font-size:14px;margin-top:6px;}
 </style>
 </head>
 
 <body>
 
-<div class="login-box">
+<div class="header">
+🌱 Smart Farm Control System
+<button class="page2btn" onclick="goPage2()">ไปหน้า 2 →</button>
+</div>
 
-    <div class="logo">🌱</div>
+<div class="container">
+<div class="main">
 
-    <div class="title">
-        Smart Farm Login
-    </div>
+<div class="card">
+<h3>🔌 อุปกรณ์</h3>
+<div class="device-area">
+<div class="slot empty">ช่องที่ 1</div>
+<div class="slot empty">ช่องที่ 2</div>
+<div class="slot empty">ช่องที่ 3</div>
+<div class="slot empty">ช่องที่ 4</div>
+<div class="slot empty">ช่องที่ 5</div>
+<div class="slot empty">ช่องที่ 6</div>
+<div class="slot empty">ช่องที่ 7</div>
+<div class="slot empty">ช่องที่ 8</div>
+</div>
+</div>
 
-    <form onsubmit="event.preventDefault(); login();">
-        <div class="input-group">
-            <label>Username</label>
-            <input type="text" id="username" required autocomplete="username">
-        </div>
+<div>
 
-        <div class="input-group">
-            <label>Password</label>
-            <input type="password" id="password" required autocomplete="current-password">
-        </div>
+<div class="card">
+<h3>➕ เพิ่มอุปกรณ์</h3>
+<input id="deviceName" placeholder="ชื่ออุปกรณ์">
+<input id="onKey" placeholder="คำเปิด">
+<input id="offKey" placeholder="คำปิด">
+<input id="pinInput" placeholder="GPIO">
+<button class="add" onclick="addDevice()">เพิ่ม</button>
+</div>
 
-        <button type="submit" class="btn-login">
-            เข้าสู่ระบบ
-        </button>
-    </form>
+<div class="card">
+<h3>🎙️ คำสั่งเสียง</h3>
+<button class="add" onclick="startVoice()">เริ่มพูด</button>
+<p id="voiceText">รอฟัง...</p>
+</div>
 
-    <div id="error" class="error"></div>
+<div class="card">
+<h3>⏰ ตั้งเวลา</h3>
+<select id="deviceSelect">
+<option value="">เลือกอุปกรณ์</option>
+</select>
+<input type="time" id="timeOn">
+<input type="time" id="timeOff">
+<button class="add" onclick="saveSchedule()">บันทึก</button>
+<p id="scheduleStatus"></p>
+</div>
 
+</div>
+</div>
 </div>
 
 <script>
-function login(){
-    const usernameInput = document.getElementById("username");
-    const passwordInput = document.getElementById("password");
-    const errorDisplay = document.getElementById("error");
+let ws;
+let devices=[];
+let schedules=[];
+let lastTriggered={};
 
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
+//////////////////////////////////////////////////
+// WEBSOCKET (แก้ไขเพื่อเชื่อมต่อกับ Render)
+//////////////////////////////////////////////////
 
-    // ล้างข้อความแจ้งเตือนเก่าก่อนตรวจข้อมููลใหม่
-    errorDisplay.innerText = "";
+function connectWS(){
+    // กำหนด URL ของ Render ที่ได้จากหน้าบอร์ดของคุณโดยตรง
+    const renderHost = "smartfarm-server-fuos.onrender.com";
+    
+    console.log("กำลังเชื่อมต่อไปยังเซิร์ฟเวอร์...");
+    // บังคับใช้ wss:// (WebSocket Secure) เพราะ Render ทำงานบน HTTPS
+    ws = new WebSocket("wss://" + renderHost);
 
-    // ตรวจสอบเงื่อนไขบัญชีผู้ใช้
-    if(username === "admin" && password === "1234"){
-        // เปลี่ยนทิศทางไปหน้าแรกของระบบควบคุม (index.html)
-        window.location.href = "index.html";
-    } else {
-        errorDisplay.innerText = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
-        // ล้างช่องรหัสผ่านเพื่อให้กรอกใหม่
-        passwordInput.value = "";
-        passwordInput.focus();
+    ws.onopen=()=>{
+        console.log("เชื่อมต่อเซิร์ฟเวอร์สำเร็จ!");
+        ws.send(JSON.stringify({
+            type:"web"
+        }));
+    };
+
+    ws.onmessage=(msg)=>{
+        const data=JSON.parse(msg.data);
+        if(data.device){
+            setDeviceState(
+                data.device,
+                data.status,
+                false
+            );
+        }
+    };
+
+    ws.onclose=()=>{
+        console.log("การเชื่อมต่อหลุดหาย กำลังพยายามเชื่อมต่อใหม่ใน 5 วินาที... (หากเซิร์ฟเวอร์หลับค้าง อาจใช้เวลาตื่นประมาณ 50 วินาที)");
+        // ขยายเวลาเป็น 5 วินาที เพื่อไม่ให้ยิงขอเชื่อมต่อถี่เกินไปขณะเซิร์ฟเวอร์ Render กำลังบูตตัวเอง (Spin up)
+        setTimeout(connectWS, 5000);
+    };
+    
+    ws.onerror=(err)=>{
+        console.error("WebSocket เกิดข้อผิดพลาด: ", err);
+    };
+}
+
+connectWS();
+
+//////////////////////////////////////////////////
+// STORAGE
+//////////////////////////////////////////////////
+
+function saveDevices(){
+    localStorage.setItem(
+        "devices",
+        JSON.stringify(devices)
+    );
+}
+
+function saveSchedules(){
+    localStorage.setItem(
+        "schedules",
+        JSON.stringify(schedules)
+    );
+}
+
+function loadDevices(){
+    const data=localStorage.getItem("devices");
+    if(!data) return;
+    devices=JSON.parse(data);
+    devices.forEach(d=>{
+        createDeviceUI(d);
+    });
+}
+
+function loadSchedules(){
+    const data=localStorage.getItem("schedules");
+    if(!data) return;
+    schedules=JSON.parse(data);
+    schedules.forEach(updateScheduleUI);
+}
+
+//////////////////////////////////////////////////
+// DEVICE
+//////////////////////////////////////////////////
+
+function createDeviceUI(d){
+    const slot = document.querySelector(".slot.empty");
+    if(!slot) return;
+
+    slot.classList.remove("empty");
+    slot.dataset.pin=d.pin;
+    slot.innerHTML=`
+        <button class="deleteBtn" onclick="deleteDevice('${d.pin}')">✕</button>
+        <h4>${d.name}</h4>
+        <button class="device ${d.state}" onclick="toggleDevice('${d.pin}')">
+            ${d.state.toUpperCase()}
+        </button>
+        <div class="info">GPIO: ${d.pin}</div>
+        <div class="info">🎤 เปิด: ${d.on}</div>
+        <div class="info">🎤 ปิด: ${d.off}</div>
+        <div class="info timeInfo">
+            ⏰ เปิด: -<br>
+            ⏰ ปิด: -
+        </div>
+    `;
+
+    const option=document.createElement("option");
+    option.value=d.pin;
+    option.textContent=d.name;
+    deviceSelect.appendChild(option);
+}
+
+function addDevice(){
+    const name=deviceName.value.trim();
+    const on=onKey.value.trim();
+    const off=offKey.value.trim();
+    const pin=pinInput.value.trim();
+
+    if(!name||!on||!off||!pin){
+        alert("กรอกข้อมูลให้ครบ");
+        return;
+    }
+
+    const device={
+        name,
+        on,
+        off,
+        pin,
+        state:"off"
+    };
+
+    devices.push(device);
+    saveDevices();
+    createDeviceUI(device);
+
+    deviceName.value="";
+    onKey.value="";
+    offKey.value="";
+    pinInput.value="";
+}
+
+function deleteDevice(pin){
+    devices=devices.filter(d=>d.pin!=pin);
+    saveDevices();
+    location.reload();
+}
+
+function setDeviceState(pin, state, send=true){
+    devices.forEach(d=>{
+        if(d.pin==pin){
+            d.state=state;
+        }
+    });
+
+    saveDevices();
+
+    const btn=document.querySelector(`[data-pin='${pin}'] .device`);
+    if(btn){
+        btn.className="device "+state;
+        btn.innerText=state.toUpperCase();
+    }
+
+    // เพิ่มเงื่อนไขตรวจสอบตรวจสอบสถานะ WebSocket (readyState === 1 คือ OPEN) ก่อนส่งข้อมูล
+    if(send && ws && ws.readyState === 1){
+        ws.send(JSON.stringify({
+            type:"control",
+            device:pin,
+            status:state
+        }));
+    } else if (send) {
+        console.warn("ไม่สามารถส่งคำสั่งได้เนื่องจากไม่ได้เชื่อมต่อกับเซิร์ฟเวอร์");
     }
 }
+
+function toggleDevice(pin){
+    const btn=document.querySelector(`[data-pin='${pin}'] .device`);
+    const state=btn.classList.contains("on") ? "off" : "on";
+    setDeviceState(pin,state,true);
+}
+
+//////////////////////////////////////////////////
+// VOICE UNIVERSAL SYSTEM
+//////////////////////////////////////////////////
+
+let recognition;
+
+function startVoice(){
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if(!SpeechRecognition){
+        voiceText.innerText ="มือถือไม่รองรับเสียง";
+        alert("มือถือเครื่องนี้ไม่รองรับคำสั่งเสียง");
+        return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang="th-TH";
+    recognition.continuous=false;
+    recognition.interimResults=false;
+    voiceText.innerText="กำลังฟัง...";
+    recognition.start();
+
+    recognition.onresult=(event)=>{
+        const text = event.results[0][0].transcript.toLowerCase();
+        voiceText.innerText=text;
+
+        devices.forEach(d=>{
+            if(text.includes(d.on.toLowerCase())){
+                setDeviceState(d.pin, "on");
+            }
+            if(text.includes(d.off.toLowerCase())){
+                setDeviceState(d.pin, "off");
+            }
+        });
+    };
+
+    recognition.onerror=(e)=>{
+        console.log(e);
+        voiceText.innerText="ไม่สามารถใช้เสียงได้";
+    };
+}
+
+//////////////////////////////////////////////////
+// SCHEDULE
+//////////////////////////////////////////////////
+
+function saveSchedule(){
+    const pin=deviceSelect.value;
+    if(!pin) return;
+
+    const s={
+        pin,
+        on:timeOn.value,
+        off:timeOff.value
+    };
+
+    schedules=schedules.filter(x=>x.pin!=pin);
+    schedules.push(s);
+    saveSchedules();
+    updateScheduleUI(s);
+    scheduleStatus.innerText="บันทึกเวลาแล้ว";
+}
+
+function updateScheduleUI(s){
+    const slot=document.querySelector(`[data-pin='${s.pin}']`);
+    if(slot){
+        slot.querySelector(".timeInfo").innerHTML=
+        `⏰ เปิด: ${s.on||"-"}<br>⏰ ปิด: ${s.off||"-"}`;
+    }
+}
+
+setInterval(()=>{
+    const now=new Date();
+    const time = now.getHours().toString().padStart(2,"0") + ":" + now.getMinutes().toString().padStart(2,"0");
+
+    schedules.forEach(s=>{
+        if(s.on==time && lastTriggered[s.pin+"_on"]!=time){
+            setDeviceState(s.pin, "on");
+            lastTriggered[s.pin+"_on"]=time;
+        }
+        if(s.off==time && lastTriggered[s.pin+"_off"]!=time){
+            setDeviceState(s.pin, "off");
+            lastTriggered[s.pin+"_off"]=time;
+        }
+    });
+},5000);
+
+//////////////////////////////////////////////////
+
+function goPage2(){
+    location.href="dashboard.html";
+}
+
+//////////////////////////////////////////////////
+loadDevices();
+loadSchedules();
 </script>
 
 </body>
