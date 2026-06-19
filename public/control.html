@@ -217,14 +217,12 @@ function connectWS(){
 connectWS();
 
 async function loadDevicesFromSupabase() {
-    // รีเซ็ตหน้าจอสล็อตให้ว่างเปล่าก่อนจัดเรียงใหม่ เพื่อป้องกัน UI เอ๋อค้างเวลาเพิ่ม/ลบอุปกรณ์
     document.getElementById('deviceArea').innerHTML = `
         <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
         <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
         <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
         <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
     
-    // เคลียร์ค่ารายชื่ออุปกรณ์ในช่องตั้งเวลาก่อน เพื่อป้องกันตัวเลือกซ้ำซ้อนกันหลายๆ รอบ
     document.getElementById('deviceSelect').innerHTML = '<option value="">เลือกอุปกรณ์</option>';
 
     const { data, error } = await supabase
@@ -249,11 +247,12 @@ function createDeviceUI(d){
     if(!slot) return;
 
     slot.classList.remove("empty");
-    slot.dataset.pin=d.pin;
+    // แนะนำให้ใส่ attribute ลงใน HTML element ให้ชัดเจน เพื่อให้ querySelector ค้นหาเจอ
+    slot.setAttribute("data-pin", d.pin);
     
-    const cleanOn = d.on_key.trim();
-    const cleanOff = d.off_key.trim();
-    const cleanState = d.state.trim().toLowerCase();
+    const cleanOn = d.on_key ? d.on_key.trim() : "";
+    const cleanOff = d.off_key ? d.off_key.trim() : "";
+    const cleanState = d.state ? d.state.trim().toLowerCase() : "off";
 
     slot.innerHTML=`
         <button class="deleteBtn" onclick="deleteDevice('${d.pin}')">✕</button>
@@ -290,12 +289,12 @@ async function addDevice(){
     if(!name||!on||!off||!pin){ alert("กรอกข้อมูลให้ครบทุกช่องก่อนกดเพิ่มครับ"); return; }
 
     const { error } = await supabase.from('devices').insert([
-        { name: name, on_key: on, off_key: off, pin: pin, state: "off" }
+        { name: name, on_key: on, off_key: off, pin: pin, state: "OFF" }
     ]);
 
     if(error){
         console.error("Supabase Add Error:", error);
-        alert("ไม่สามารถเพิ่มอุปกรณ์ได้เนื่องจาก: " + error.message + "\n(แนะนำ: เช็คชื่อคอลัมน์ใน Supabase ว่าตรงกับในโค้ดไหม หรือเปิด RLS หรือยัง)");
+        alert("ไม่สามารถเพิ่มอุปกรณ์ได้เนื่องจาก: " + error.message);
     } else {
         alert("เพิ่มอุปกรณ์สำเร็จแล้ว!");
         nameInput.value=""; onKeyInput.value=""; offKeyInput.value=""; pinInputElement.value="";
@@ -311,114 +310,16 @@ async function deleteDevice(pin){
     }
 }
 
-async function setDeviceState(pin, state, send=true){
-    devices.forEach(d=>{ if(d.pin==pin){ d.state=state; } });
-
-    const btn=document.querySelector(`[data-pin='${pin}'] .device`);
-    if(btn){
-        btn.className="device "+state;
-        btn.innerText=state.toUpperCase();
-    }
-
-    await supabase.from('devices').update({ state: state }).eq('pin', pin);
-
-    const currentDevice = devices.find(d => d.pin == pin);
-    if (currentDevice) {
-        await supabase.from('device_logs').insert([
-            { device_pin: pin, device_name: currentDevice.name, action: state.toUpperCase() }
-        ]);
-    }
-
-    if(send && ws && ws.readyState === 1){
-        ws.send(JSON.stringify({
-            type:"control",
-            device:pin,
-            status:state
-        }));
-    }
-}
-
 function toggleDevice(pin){
-    const btn=document.querySelector(`[data-pin='${pin}'] .device`);
-    const state=btn.classList.contains("on") ? "off" : "on";
-    setDeviceState(pin,state,true);
-}
-
-let recognition;
-
-function startVoice(){
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(!SpeechRecognition){ voiceText.innerText ="มือถือไม่รองรับระบบเสียง"; return; }
-
-    if(recognition) { try { recognition.abort(); } catch(e) {} }
-
-    recognition = new SpeechRecognition();
-    recognition.lang = "th-TH";
-    voiceText.innerText = "กำลังฟัง... พูดได้เลยครับ";
-    recognition.start();
-
-    recognition.onresult=(event)=>{
-        const text = event.results[0][0].transcript.toLowerCase().trim();
-        voiceText.innerText = "คุณพูดว่า: " + text;
-
-        devices.forEach(d=>{
-            const wordOn = d.on_key.toLowerCase().trim();
-            const wordOff = d.off_key.toLowerCase().trim();
-
-            if(text === wordOn || (wordOn.length > 2 && text.includes(wordOn))) {
-                setDeviceState(d.pin, "on", true);
-            } 
-            if(text === wordOff || (wordOff.length > 2 && text.includes(wordOff))) {
-                setDeviceState(d.pin, "off", true);
-            }
-        });
-    };
-
-    recognition.onerror=(e)=>{ voiceText.innerText = "เกิดข้อผิดพลาดในการฟังซาวด์"; };
-}
-
-async function saveSchedule(){
-    const pin = document.getElementById('deviceSelect').value;
-    const onTime = document.getElementById('timeOn').value;
-    const offTime = document.getElementById('timeOff').value;
-    if(!pin) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
-
-    const { error } = await supabase.from('devices').update({
-        time_on: onTime,
-        time_off: offTime
-    }).eq('pin', pin);
-
-    if (error) {
-        alert("ตั้งเวลาผิดพลาด: " + error.message);
-    } else {
-        document.getElementById('scheduleStatus').innerText = "บันทึกเวลาเปิด-ปิดลงคลาวด์แล้ว!";
-        setTimeout(() => { document.getElementById('scheduleStatus').innerText = ""; }, 3000);
-        loadDevicesFromSupabase();
+    const btn = document.querySelector(`[data-pin='${pin}'] .device`);
+    if(!btn) {
+        console.error("ไม่พบปุ่มกดของอุปกรณ์ Pin:", pin);
+        return;
     }
+    // เช็คคลาสเพื่อสลับสถานะ
+    const nextState = btn.classList.contains("on") ? "off" : "on";
+    setDeviceState(pin, nextState, true);
 }
 
-setInterval(()=>{
-    const now=new Date();
-    const time = now.getHours().toString().padStart(2,"0") + ":" + now.getMinutes().toString().padStart(2,"0");
-
-    devices.forEach(s=>{
-        // เพิ่มเงื่อนไขเช็คสถานะฝั่ง Client ด้วย (s.state !== "on") เพื่อป้องกันการยิงคำสั่งเปิดซ้ำรัวๆ ลง Supabase ตลอดทั้งนาทีนั้น
-        if(s.time_on == time && s.state !== "on" && lastTriggered[s.pin+"_on"] != time){
-            setDeviceState(s.pin, "on", true);
-            lastTriggered[s.pin+"_on"] = time;
-        }
-        if(s.time_off == time && s.state !== "off" && lastTriggered[s.pin+"_off"] != time){
-            setDeviceState(s.pin, "off", true);
-            lastTriggered[s.pin+"_off"] = time;
-        }
-    });
-},5000);
-
-function goPage2(){ location.href="dashboard.html"; }
-
-// เริ่มต้นโหลดข้อมูลจากฐานข้อมูลทันทีเมื่อเปิดหน้าเว็บ
-loadDevicesFromSupabase();
-</script>
-
-</body>
-</html>
+async function setDeviceState(pin, state, send=true){
+    const lowerState = state.
