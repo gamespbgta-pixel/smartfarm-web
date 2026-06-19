@@ -377,7 +377,7 @@ async function saveSchedule(){
     const pin = document.getElementById('deviceSelect').value;
     const onTime = document.getElementById('timeOn').value;
     const offTime = document.getElementById('timeOff').value;
-    if(!pin) { alert("โปร2เลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
+    if(!pin) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
 
     const { error } = await supabase.from('devices').update({
         time_on: onTime,
