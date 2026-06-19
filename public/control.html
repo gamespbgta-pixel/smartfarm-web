@@ -181,7 +181,6 @@ font-size: 16px;
 </div>
 
 <script>
-// 2. ปรับการเชื่อมต่อยิงเข้าคลาวด์โปรเจกต์ของคุณ
 const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -189,10 +188,6 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let ws;
 let devices=[];
 let lastTriggered={};
-
-//////////////////////////////////////////////////
-// WEBSOCKET
-//////////////////////////////////////////////////
 
 function connectWS(){
     const renderHost = "smartfarm-server-fuos.onrender.com";
@@ -207,7 +202,6 @@ function connectWS(){
     ws.onmessage=(msg)=>{
         const data=JSON.parse(msg.data);
         if(data.device){
-            // รับสัญญาณระยะไกลมา แล้วสั่งอัปเดตสถานะลงจอและลง Supabase (ไม่ส่งสัญญาณซ้ำ)
             setDeviceState(data.device, data.status, false);
         }
     };
@@ -222,22 +216,15 @@ function connectWS(){
 
 connectWS();
 
-//////////////////////////////////////////////////
-// DATABASE STORAGE (แก้แทนของเดิมทั้งหมด)
-//////////////////////////////////////////////////
-
 async function loadDevicesFromSupabase() {
-    // รีเซ็ตล้างหน้าต่างกริดอุปกรณ์ให้กลับเป็นค่าเริ่มต้นก่อนดึงใหม่
     document.getElementById('deviceArea').innerHTML = `
         <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
         <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
         <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
         <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
     
-    // รีเซ็ตตัวเลือกใน Select Element
     document.getElementById('deviceSelect').innerHTML = '<option value="">เลือกอุปกรณ์</option>';
 
-    // ดึงค่าแบบเรียงตาม ID เพื่อไม่ให้สลับลำดับช่องเวลาแก้ไขข้อมูล
     const { data, error } = await supabase
         .from('devices')
         .select('*')
@@ -253,10 +240,6 @@ async function loadDevicesFromSupabase() {
         createDeviceUI(d);
     });
 }
-
-//////////////////////////////////////////////////
-// DEVICE CONTROLLER
-//////////////////////////////////////////////////
 
 function createDeviceUI(d){
     const slot = document.querySelector(".slot.empty");
@@ -298,7 +281,6 @@ async function addDevice(){
 
     if(!name||!on||!off||!pin){ alert("กรอกข้อมูลให้ครบ"); return; }
 
-    // ยิงค่า INSERT ขึ้นตารางคลาวด์
     const { error } = await supabase.from('devices').insert([
         { name: name, on_key: on, off_key: off, pin: pin, state: "off" }
     ]);
@@ -320,20 +302,24 @@ async function deleteDevice(pin){
 }
 
 async function setDeviceState(pin, state, send=true){
-    // เปลี่ยนสถานะในหน่วยความจำชั่วคราวบนหน้าเว็บ
     devices.forEach(d=>{ if(d.pin==pin){ d.state=state; } });
 
-    // เปลี่ยนสีปุ่มบน UI ของแผงควบคุม
     const btn=document.querySelector(`[data-pin='${pin}'] .device`);
     if(btn){
         btn.className="device "+state;
         btn.innerText=state.toUpperCase();
     }
 
-    // อัปเดตสถานะแบบเรียลไทม์ฝังลงตาราง Supabase
     await supabase.from('devices').update({ state: state }).eq('pin', pin);
 
-    // ส่งสัญญาณเตือนไปหาเซิร์ฟเวอร์บอร์ดฮาร์ดแวร์ภายนอก (WebSocket)
+    // บันทึกประวัติลงตารางล็อกย้อนหลังคลาวด์
+    const currentDevice = devices.find(d => d.pin == pin);
+    if (currentDevice) {
+        await supabase.from('device_logs').insert([
+            { device_pin: pin, device_name: currentDevice.name, action: state.toUpperCase() }
+        ]);
+    }
+
     if(send && ws && ws.readyState === 1){
         ws.send(JSON.stringify({
             type:"control",
@@ -348,10 +334,6 @@ function toggleDevice(pin){
     const state=btn.classList.contains("on") ? "off" : "on";
     setDeviceState(pin,state,true);
 }
-
-//////////////////////////////////////////////////
-// VOICE SYSTEM
-//////////////////////////////////////////////////
 
 let recognition;
 
@@ -386,17 +368,12 @@ function startVoice(){
     recognition.onerror=(e)=>{ voiceText.innerText = "เกิดข้อผิดพลาดในการฟังซาวด์"; };
 }
 
-//////////////////////////////////////////////////
-// SCHEDULE SYSTEM
-//////////////////////////////////////////////////
-
 async function saveSchedule(){
     const pin = document.getElementById('deviceSelect').value;
     const onTime = document.getElementById('timeOn').value;
     const offTime = document.getElementById('timeOff').value;
     if(!pin) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
 
-    // เซฟเวลาอัปเดตแยกคอลัมน์ตัวแปรลงแถวอุปกรณ์นั้นๆ ทันที
     const { error } = await supabase.from('devices').update({
         time_on: onTime,
         time_off: offTime
@@ -411,7 +388,6 @@ async function saveSchedule(){
     }
 }
 
-// ตรวจสอบฐานเวลาทุกๆ 5 วินาทีเพื่อเปิดปิดอัตโนมัติ
 setInterval(()=>{
     const now=new Date();
     const time = now.getHours().toString().padStart(2,"0") + ":" + now.getMinutes().toString().padStart(2,"0");
@@ -430,7 +406,6 @@ setInterval(()=>{
 
 function goPage2(){ location.href="dashboard.html"; }
 
-// บังคับเรียกใช้งานดึงข้อมูลจาก Supabase ทันทีที่เปิดหน้าจอ
 loadDevicesFromSupabase();
 </script>
 
