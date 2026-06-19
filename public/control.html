@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Farm</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -32,6 +33,7 @@ border:none;
 padding:8px 16px;
 border-radius:12px;
 cursor:pointer;
+font-weight: 600;
 }
 .container{
 max-width:1300px;
@@ -77,6 +79,7 @@ border:none;
 font-size:18px;
 margin:12px auto;
 cursor:pointer;
+font-weight: 600;
 }
 .device.on{background:#2ecc71;color:#fff;}
 .device.off{background:#e74c3c;color:#fff;}
@@ -93,6 +96,9 @@ background:#e74c3c;
 color:#fff;
 font-size:18px;
 cursor:pointer;
+display: flex;
+align-items: center;
+justify-content: center;
 }
 input,select{
 width:100%;
@@ -100,6 +106,7 @@ padding:10px;
 border-radius:14px;
 border:1px solid #ddd;
 margin-bottom:10px;
+font-family: 'Kanit', sans-serif;
 }
 .add{
 width:100%;
@@ -109,6 +116,9 @@ border-radius:16px;
 background:#27ae60;
 color:#fff;
 cursor:pointer;
+font-family: 'Kanit', sans-serif;
+font-weight: 600;
+font-size: 16px;
 }
 .info{font-size:14px;margin-top:6px;}
 </style>
@@ -126,7 +136,7 @@ cursor:pointer;
 
 <div class="card">
 <h3>🔌 อุปกรณ์</h3>
-<div class="device-area">
+<div class="device-area" id="deviceArea">
 <div class="slot empty">ช่องที่ 1</div>
 <div class="slot empty">ช่องที่ 2</div>
 <div class="slot empty">ช่องที่ 3</div>
@@ -163,7 +173,7 @@ cursor:pointer;
 <input type="time" id="timeOn">
 <input type="time" id="timeOff">
 <button class="add" onclick="saveSchedule()">บันทึก</button>
-<p id="scheduleStatus"></p>
+<p id="scheduleStatus" style="color: #27ae60; margin-top: 8px; font-weight: bold;"></p>
 </div>
 
 </div>
@@ -171,9 +181,13 @@ cursor:pointer;
 </div>
 
 <script>
+// 2. ปรับการเชื่อมต่อยิงเข้าคลาวด์โปรเจกต์ของคุณ
+const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 let ws;
 let devices=[];
-let schedules=[];
 let lastTriggered={};
 
 //////////////////////////////////////////////////
@@ -182,25 +196,19 @@ let lastTriggered={};
 
 function connectWS(){
     const renderHost = "smartfarm-server-fuos.onrender.com";
-    
     console.log("กำลังเชื่อมต่อไปยังเซิร์ฟเวอร์...");
     ws = new WebSocket("wss://" + renderHost);
 
     ws.onopen=()=>{
         console.log("เชื่อมต่อเซิร์ฟเวอร์สำเร็จ!");
-        ws.send(JSON.stringify({
-            type:"web"
-        }));
+        ws.send(JSON.stringify({ type:"web" }));
     };
 
     ws.onmessage=(msg)=>{
         const data=JSON.parse(msg.data);
         if(data.device){
-            setDeviceState(
-                data.device,
-                data.status,
-                false
-            );
+            // รับสัญญาณระยะไกลมา แล้วสั่งอัปเดตสถานะลงจอและลง Supabase (ไม่ส่งสัญญาณซ้ำ)
+            setDeviceState(data.device, data.status, false);
         }
     };
 
@@ -209,49 +217,45 @@ function connectWS(){
         setTimeout(connectWS, 5000);
     };
     
-    ws.onerror=(err)=>{
-        console.error("WebSocket เกิดข้อผิดพลาด: ", err);
-    };
+    ws.onerror=(err)=>{ console.error("WebSocket เกิดข้อผิดพลาด: ", err); };
 }
 
 connectWS();
 
 //////////////////////////////////////////////////
-// STORAGE
+// DATABASE STORAGE (แก้แทนของเดิมทั้งหมด)
 //////////////////////////////////////////////////
 
-function saveDevices(){
-    localStorage.setItem(
-        "devices",
-        JSON.stringify(devices)
-    );
-}
+async function loadDevicesFromSupabase() {
+    // รีเซ็ตล้างหน้าต่างกริดอุปกรณ์ให้กลับเป็นค่าเริ่มต้นก่อนดึงใหม่
+    document.getElementById('deviceArea').innerHTML = `
+        <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
+        <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
+        <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
+        <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
+    
+    // รีเซ็ตตัวเลือกใน Select Element
+    document.getElementById('deviceSelect').innerHTML = '<option value="">เลือกอุปกรณ์</option>';
 
-function saveSchedules(){
-    localStorage.setItem(
-        "schedules",
-        JSON.stringify(schedules)
-    );
-}
+    // ดึงค่าแบบเรียงตาม ID เพื่อไม่ให้สลับลำดับช่องเวลาแก้ไขข้อมูล
+    const { data, error } = await supabase
+        .from('devices')
+        .select('*')
+        .order('id', { ascending: true });
 
-function loadDevices(){
-    const data=localStorage.getItem("devices");
-    if(!data) return;
-    devices=JSON.parse(data);
-    devices.forEach(d=>{
+    if (error) {
+        console.error("โหลดฐานข้อมูลไม่สำเร็จ:", error.message);
+        return;
+    }
+
+    devices = data;
+    devices.forEach(d => {
         createDeviceUI(d);
     });
 }
 
-function loadSchedules(){
-    const data=localStorage.getItem("schedules");
-    if(!data) return;
-    schedules=JSON.parse(data);
-    schedules.forEach(updateScheduleUI);
-}
-
 //////////////////////////////////////////////////
-// DEVICE
+// DEVICE CONTROLLER
 //////////////////////////////////////////////////
 
 function createDeviceUI(d){
@@ -261,8 +265,8 @@ function createDeviceUI(d){
     slot.classList.remove("empty");
     slot.dataset.pin=d.pin;
     
-    const cleanOn = d.on.trim();
-    const cleanOff = d.off.trim();
+    const cleanOn = d.on_key.trim();
+    const cleanOff = d.off_key.trim();
     const cleanState = d.state.trim().toLowerCase();
 
     slot.innerHTML=`
@@ -275,67 +279,61 @@ function createDeviceUI(d){
         <div class="info">🎤 เปิด: ${cleanOn}</div>
         <div class="info">🎤 ปิด: ${cleanOff}</div>
         <div class="info timeInfo">
-            ⏰ เปิด: -<br>
-            ⏰ ปิด: -
+            ⏰ เปิด: ${d.time_on || "-"}<br>
+            ⏰ ปิด: ${d.time_off || "-"}
         </div>
     `;
 
     const option=document.createElement("option");
     option.value=d.pin;
     option.textContent=d.name;
-    deviceSelect.appendChild(option);
+    document.getElementById('deviceSelect').appendChild(option);
 }
 
-function addDevice(){
+async function addDevice(){
     const name=deviceName.value.trim();
     const on=onKey.value.trim();
     const off=offKey.value.trim();
     const pin=pinInput.value.trim();
 
-    if(!name||!on||!off||!pin){
-        alert("กรอกข้อมูลให้ครบ");
-        return;
+    if(!name||!on||!off||!pin){ alert("กรอกข้อมูลให้ครบ"); return; }
+
+    // ยิงค่า INSERT ขึ้นตารางคลาวด์
+    const { error } = await supabase.from('devices').insert([
+        { name: name, on_key: on, off_key: off, pin: pin, state: "off" }
+    ]);
+
+    if(error){
+        alert("ไม่สามารถเพิ่มอุปกรณ์ได้: " + error.message);
+    } else {
+        deviceName.value=""; onKey.value=""; offKey.value=""; pinInput.value="";
+        loadDevicesFromSupabase();
     }
-
-    const device={
-        name,
-        on,
-        off,
-        pin,
-        state:"off"
-    };
-
-    devices.push(device);
-    saveDevices();
-    createDeviceUI(device);
-
-    deviceName.value="";
-    onKey.value="";
-    offKey.value="";
-    pinInput.value="";
 }
 
-function deleteDevice(pin){
-    devices=devices.filter(d=>d.pin!=pin);
-    saveDevices();
-    location.reload();
+async function deleteDevice(pin){
+    if(confirm("คุณต้องการลบอุปกรณ์ช่องนี้ใช่หรือไม่?")) {
+        const { error } = await supabase.from('devices').delete().eq('pin', pin);
+        if(error) alert("ลบไม่สำเร็จ: " + error.message);
+        else loadDevicesFromSupabase();
+    }
 }
 
-function setDeviceState(pin, state, send=true){
-    devices.forEach(d=>{
-        if(d.pin==pin){
-            d.state=state;
-        }
-    });
+async function setDeviceState(pin, state, send=true){
+    // เปลี่ยนสถานะในหน่วยความจำชั่วคราวบนหน้าเว็บ
+    devices.forEach(d=>{ if(d.pin==pin){ d.state=state; } });
 
-    saveDevices();
-
+    // เปลี่ยนสีปุ่มบน UI ของแผงควบคุม
     const btn=document.querySelector(`[data-pin='${pin}'] .device`);
     if(btn){
         btn.className="device "+state;
         btn.innerText=state.toUpperCase();
     }
 
+    // อัปเดตสถานะแบบเรียลไทม์ฝังลงตาราง Supabase
+    await supabase.from('devices').update({ state: state }).eq('pin', pin);
+
+    // ส่งสัญญาณเตือนไปหาเซิร์ฟเวอร์บอร์ดฮาร์ดแวร์ภายนอก (WebSocket)
     if(send && ws && ws.readyState === 1){
         ws.send(JSON.stringify({
             type:"control",
@@ -352,127 +350,88 @@ function toggleDevice(pin){
 }
 
 //////////////////////////////////////////////////
-// VOICE UNIVERSAL SYSTEM (ฉบับแก้ไขคำสั่งเสียงตีกันเอง)
+// VOICE SYSTEM
 //////////////////////////////////////////////////
 
 let recognition;
 
 function startVoice(){
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRecognition){ voiceText.innerText ="มือถือไม่รองรับระบบเสียง"; return; }
 
-    if(!SpeechRecognition){
-        voiceText.innerText ="มือถือไม่รองรับระบบเสียง";
-        alert("เบราว์เซอร์หรืออุปกรณ์เครื่องนี้ไม่รองรับระบบสั่งงานด้วยเสียง");
-        return;
-    }
-
-    if(recognition) {
-        try { recognition.abort(); } catch(e) {}
-    }
+    if(recognition) { try { recognition.abort(); } catch(e) {} }
 
     recognition = new SpeechRecognition();
     recognition.lang = "th-TH";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    
     voiceText.innerText = "กำลังฟัง... พูดได้เลยครับ";
     recognition.start();
 
     recognition.onresult=(event)=>{
-        // ดึงข้อความเสียง ตัดเว้นวรรคหัวท้ายออกให้เกลี้ยง
         const text = event.results[0][0].transcript.toLowerCase().trim();
         voiceText.innerText = "คุณพูดว่า: " + text;
 
-        console.log("เสียงที่ได้ยินจริงคือ: '" + text + "'");
-
         devices.forEach(d=>{
-            const wordOn = d.on.toLowerCase().trim();
-            const wordOff = d.off.toLowerCase().trim();
+            const wordOn = d.on_key.toLowerCase().trim();
+            const wordOff = d.off_key.toLowerCase().trim();
 
-            // ปรับปรุงเงื่อนไขใหม่: ตรวจสอบแบบจับคู่คำเป๊ะๆ (Strict Matching) 
-            // เพื่อไม่ให้คำว่า "เปิด" ไปตีกับคำว่า "เปิดพัดลม"
-            if(text === wordOn) {
-                console.log("🎯 สั่งเปิดสำเร็จ (ตรงเป๊ะ) ขา GPIO: " + d.pin);
+            if(text === wordOn || (wordOn.length > 2 && text.includes(wordOn))) {
                 setDeviceState(d.pin, "on", true);
-            } else if(wordOn.length > 2 && text.includes(wordOn)) {
-                console.log("🎯 สั่งเปิดสำเร็จ (รวมคำยาว) ขา GPIO: " + d.pin);
-                setDeviceState(d.pin, "on", true);
-            }
-            
-            if(text === wordOff) {
-                console.log("🎯 สั่งปิดสำเร็จ (ตรงเป๊ะ) ขา GPIO: " + d.pin);
-                setDeviceState(d.pin, "off", true);
-            } else if(wordOff.length > 2 && text.includes(wordOff)) {
-                console.log("🎯 สั่งปิดสำเร็จ (รวมคำยาว) ขา GPIO: " + d.pin);
+            } 
+            if(text === wordOff || (wordOff.length > 2 && text.includes(wordOff))) {
                 setDeviceState(d.pin, "off", true);
             }
         });
     };
 
-    recognition.onerror=(e)=>{
-        console.error(e);
-        if(e.error === 'not-allowed') {
-            voiceText.innerText = "❌ สิทธิ์เข้าถึงไมค์โดนบล็อก";
-        } else {
-            voiceText.innerText = "เกิดข้อผิดพลาดในการฟัง (Error: " + e.error + ")";
-        }
-    };
+    recognition.onerror=(e)=>{ voiceText.innerText = "เกิดข้อผิดพลาดในการฟังซาวด์"; };
 }
 
 //////////////////////////////////////////////////
-// SCHEDULE
+// SCHEDULE SYSTEM
 //////////////////////////////////////////////////
 
-function saveSchedule(){
-    const pin=deviceSelect.value;
-    if(!pin) return;
+async function saveSchedule(){
+    const pin = document.getElementById('deviceSelect').value;
+    const onTime = document.getElementById('timeOn').value;
+    const offTime = document.getElementById('timeOff').value;
+    if(!pin) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
 
-    const s={
-        pin,
-        on:timeOn.value,
-        off:timeOff.value
-    };
+    // เซฟเวลาอัปเดตแยกคอลัมน์ตัวแปรลงแถวอุปกรณ์นั้นๆ ทันที
+    const { error } = await supabase.from('devices').update({
+        time_on: onTime,
+        time_off: offTime
+    }).eq('pin', pin);
 
-    schedules=schedules.filter(x=>x.pin!=pin);
-    schedules.push(s);
-    saveSchedules();
-    updateScheduleUI(s);
-    scheduleStatus.innerText="บันทึกเวลาแล้ว";
-}
-
-function updateScheduleUI(s){
-    const slot=document.querySelector(`[data-pin='${s.pin}']`);
-    if(slot){
-        slot.querySelector(".timeInfo").innerHTML=
-        `⏰ เปิด: ${s.on||"-"}<br>⏰ ปิด: ${s.off||"-"}`;
+    if (error) {
+        alert("ตั้งเวลาผิดพลาด: " + error.message);
+    } else {
+        document.getElementById('scheduleStatus').innerText = "บันทึกเวลาเปิด-ปิดลงคลาวด์แล้ว!";
+        setTimeout(() => { document.getElementById('scheduleStatus').innerText = ""; }, 3000);
+        loadDevicesFromSupabase();
     }
 }
 
+// ตรวจสอบฐานเวลาทุกๆ 5 วินาทีเพื่อเปิดปิดอัตโนมัติ
 setInterval(()=>{
     const now=new Date();
     const time = now.getHours().toString().padStart(2,"0") + ":" + now.getMinutes().toString().padStart(2,"0");
 
-    schedules.forEach(s=>{
-        if(s.on==time && lastTriggered[s.pin+"_on"]!=time){
-            setDeviceState(s.pin, "on");
-            lastTriggered[s.pin+"_on"]=time;
+    devices.forEach(s=>{
+        if(s.time_on == time && lastTriggered[s.pin+"_on"] != time){
+            setDeviceState(s.pin, "on", true);
+            lastTriggered[s.pin+"_on"] = time;
         }
-        if(s.off==time && lastTriggered[s.pin+"_off"]!=time){
-            setDeviceState(s.pin, "off");
-            lastTriggered[s.pin+"_off"]=time;
+        if(s.time_off == time && lastTriggered[s.pin+"_off"] != time){
+            setDeviceState(s.pin, "off", true);
+            lastTriggered[s.pin+"_off"] = time;
         }
     });
 },5000);
 
-//////////////////////////////////////////////////
+function goPage2(){ location.href="dashboard.html"; }
 
-function goPage2(){
-    location.href="dashboard.html";
-}
-
-//////////////////////////////////////////////////
-loadDevices();
-loadSchedules();
+// บังคับเรียกใช้งานดึงข้อมูลจาก Supabase ทันทีที่เปิดหน้าจอ
+loadDevicesFromSupabase();
 </script>
 
 </body>
