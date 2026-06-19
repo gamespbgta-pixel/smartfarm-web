@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Farm</title>
+<title>Smart Farm - Control</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -128,7 +128,7 @@ font-size: 16px;
 
 <div class="header">
 🌱 Smart Farm Control System
-<button class="page2btn" onclick="goPage2()">ไปหน้า 2 →</button>
+<button class="page2btn" onclick="goPage2()">ไปหน้าแดชบอร์ด →</button>
 </div>
 
 <div class="container">
@@ -274,21 +274,27 @@ function createDeviceUI(d){
 }
 
 async function addDevice(){
-    const name=deviceName.value.trim();
-    const on=onKey.value.trim();
-    const off=offKey.value.trim();
-    const pin=pinInput.value.trim();
+    const nameInput = document.getElementById('deviceName');
+    const onKeyInput = document.getElementById('onKey');
+    const offKeyInput = document.getElementById('offKey');
+    const pinInputElement = document.getElementById('pinInput');
 
-    if(!name||!on||!off||!pin){ alert("กรอกข้อมูลให้ครบ"); return; }
+    const name = nameInput.value.trim();
+    const on = onKeyInput.value.trim();
+    const off = offKeyInput.value.trim();
+    const pin = pinInputElement.value.trim();
+
+    if(!name||!on||!off||!pin){ alert("กรอกข้อมูลให้ครบทุกช่องก่อนกดเพิ่มครับ"); return; }
 
     const { error } = await supabase.from('devices').insert([
         { name: name, on_key: on, off_key: off, pin: pin, state: "off" }
     ]);
 
     if(error){
-        alert("ไม่สามารถเพิ่มอุปกรณ์ได้: " + error.message);
+        alert("ไม่สามารถเพิ่มอุปกรณ์ได้เนื่องจาก: " + error.message);
     } else {
-        deviceName.value=""; onKey.value=""; offKey.value=""; pinInput.value="";
+        alert("เพิ่มอุปกรณ์สำเร็จแล้ว!");
+        nameInput.value=""; onKeyInput.value=""; offKeyInput.value=""; pinInputElement.value="";
         loadDevicesFromSupabase();
     }
 }
@@ -312,7 +318,6 @@ async function setDeviceState(pin, state, send=true){
 
     await supabase.from('devices').update({ state: state }).eq('pin', pin);
 
-    // บันทึกประวัติลงตารางล็อกย้อนหลังคลาวด์
     const currentDevice = devices.find(d => d.pin == pin);
     if (currentDevice) {
         await supabase.from('device_logs').insert([
@@ -372,7 +377,7 @@ async function saveSchedule(){
     const pin = document.getElementById('deviceSelect').value;
     const onTime = document.getElementById('timeOn').value;
     const offTime = document.getElementById('timeOff').value;
-    if(!pin) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
+    if(!pin) { alert("โปร2เลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
 
     const { error } = await supabase.from('devices').update({
         time_on: onTime,
