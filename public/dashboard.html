@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard - Smart Farm</title>
+<title>Dashboard & History</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -20,143 +20,99 @@ body{
     color:#fff;
     font-size:20px;
     font-weight:600;
+    text-align: center;
     position:relative;
 }
 .back-btn {
-    position:absolute;
-    left:20px;
-    top:12px;
-    background:#fff;
-    color:#2c3e50;
-    border:none;
-    padding:8px 16px;
-    border-radius:12px;
-    cursor:pointer;
-    font-weight: 600;
+    position:absolute; left:20px; top:12px;
+    background:#fff; color:#2c3e50; border:none;
+    padding:8px 16px; border-radius:12px; cursor:pointer; font-weight:600;
 }
-.container{
-    max-width:1200px;
-    margin:auto;
-    padding:30px;
-}
-/* ออกแบบตารางแสดงผลให้ดูง่าย */
-.status-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #fff;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 10px 25px rgba(0,0,0,.05);
-}
-.status-table th, .status-table td {
-    padding: 18px;
-    text-align: left;
-    border-bottom: 1px solid #edf2f7;
-}
-.status-table th {
-    background-color: #f8fafc;
-    color: #4a5568;
-    font-weight: 600;
-}
-/* สไตล์สำหรับป้ายสถานะ ON/OFF */
-.badge {
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-weight: 600;
-    font-size: 14px;
-    display: inline-block;
-}
-.badge.on { background: #e6fffa; color: #234e52; border: 1px solid #b2f5ea; }
-.badge.off { background: #fff5f5; color: #742a2a; border: 1px solid #fed7d7; }
+.container{ max-width:1100px; margin:auto; padding:30px; }
+.card { background:#fff; padding:24px; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,.05); margin-bottom:25px; }
+h3 { margin-top:0; color:#2c3e50; }
+.log-table { width:100%; border-collapse:collapse; margin-top:15px; }
+.log-table th, .log-table td { padding:14px; text-align:left; border-bottom:1px solid #edf2f7; }
+.log-table th { background:#f8fafc; color:#4a5568; font-weight:600; }
+.badge { padding:4px 10px; border-radius:12px; font-weight:600; font-size:12px; }
+.badge.on { background:#e6fffa; color:#234e52; }
+.badge.off { background:#fff5f5; color:#742a2a; }
 </style>
 </head>
-
 <body>
 
-<div class="header" style="text-align: center;">
-    <button class="back-btn" onclick="goBack()">← กลับหน้าหลัก</button>
-    📊 หน้าแสดงสถานะรวม (Dashboard)
+<div class="header">
+    <button class="back-btn" onclick="location.href='index.html'">← กลับหน้าหลัก</button>
+    📊 แดชบอร์ดและข้อมูลย้อนหลัง 7 วัน
 </div>
 
 <div class="container">
-    <table class="status-table">
-        <thead>
-            <tr>
-                <th>ชื่ออุปกรณ์</th>
-                <th>ขา GPIO</th>
-                <th>สถานะปัจจุบัน</th>
-                <th>ตั้งเวลาเปิด</th>
-                <th>ตั้งเวลาปิด</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            <tr>
-                <td colspan="5" style="text-align: center; color: #a0aec0;">กำลังโหลดข้อมูลจากคลาวด์...</td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="card">
+        <h3>📜 บันทึกประวัติการทำงานย้อนหลัง 7 วัน</h3>
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>วัน-เวลาที่ทำงาน</th>
+                    <th>ชื่ออุปกรณ์</th>
+                    <th>ขา GPIO</th>
+                    <th>การทำงานล่าสุด</th>
+                </tr>
+            </thead>
+            <tbody id="logTableBody">
+                <tr><td colspan="4" style="text-align:center; color:#95a5a6;">กำลังโหลดประวัติย้อนหลัง...</td></tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-// 2. ตั้งค่าการเชื่อมต่อ Supabase (ใช้ URL และ KEY เดียวกับหน้าแรก)
 const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ฟังก์ชันดึงข้อมูลมาแสดงในตาราง
-async function fetchDashboardData() {
-    const tableBody = document.getElementById('tableBody');
+async function fetchHistory7Days() {
+    const tbody = document.getElementById('logTableBody');
     
-    // ดึงข้อมูลทั้งหมดจากตาราง devices
+    // คำนวณวันถอยหลังย้อนไป 7 วัน
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const isoSevenDaysAgo = sevenDaysAgo.toISOString();
+
+    // ดึงเฉพาะข้อมูลล็อกที่บันทึกไว้ภายใน 7 วันล่าสุด (.gte)
     const { data, error } = await supabase
-        .from('devices')
+        .from('device_logs')
         .select('*')
-        .order('id', { ascending: true });
+        .gte('created_at', isoSevenDaysAgo)
+        .order('created_at', { ascending: false });
 
     if (error) {
-        console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error.message);
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">โหลดข้อมูลล้มเหลว: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">ข้อผิดพลาด: ${error.message}</td></tr>`;
         return;
     }
 
-    // ถ้าไม่มีข้อมูลเลย
     if (data.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #718096;">ยังไม่มีอุปกรณ์ในระบบ</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#718096;">ไม่มีประวัติการใช้งานในช่วง 7 วันนี้</td></tr>`;
         return;
     }
 
-    // ล้างข้อความ "กำลังโหลด..." ออกเพื่อเตรียมใส่ข้อมูลจริง
-    tableBody.innerHTML = "";
+    tbody.innerHTML = "";
+    data.forEach(log => {
+        const dateObj = new Date(log.created_at);
+        const localTime = dateObj.toLocaleString('th-TH', { hour12: false });
+        const badgeClass = log.action === 'ON' ? 'on' : 'off';
 
-    // วนลูปสร้างแถวตาราง (Row) ตามจำนวนอุปกรณ์ที่ดึงมาได้
-    data.forEach(device => {
         const row = document.createElement('tr');
-        
-        // เช็คสถานะเพื่อใส่สีป้าย Badge
-        const stateClass = device.state.toLowerCase() === 'on' ? 'on' : 'off';
-        const stateText = device.state.toUpperCase();
-
         row.innerHTML = `
-            <td style="font-weight: 600; color: #2d3748;">🌱 ${device.name}</td>
-            <td><code style="background: #edf2f7; padding: 4px 8px; border-radius: 6px;">GPIO ${device.pin}</code></td>
-            <td><span class="badge ${stateClass}">${stateText}</span></td>
-            <td>⏰ ${device.time_on || "-"}</td>
-            <td>⏰ ${device.time_off || "-"}</td>
+            <td>📅 ${localTime} น.</td>
+            <td style="font-weight:600;">🌱 ${log.device_name}</td>
+            <td><code>GPIO ${log.device_pin}</code></td>
+            <td><span class="badge ${badgeClass}">${log.action}</span></td>
         `;
-        
-        tableBody.appendChild(row);
+        tbody.appendChild(row);
     });
 }
 
-function goBack() {
-    location.href = "index.html"; // เปลี่ยนเป็นชื่อไฟล์หน้าแรกของคุณ
-}
-
-// สั่งให้ทำงานทันทีเมื่อเปิดหน้านี้ขึ้นมา
-fetchDashboardData();
-
-// (ตัวเลือกเสริม) สั่งให้ดึงข้อมูลใหม่ทุกๆ 5 วินาที เพื่อให้สถานะอัปเดตอัตโนมัติ
-setInterval(fetchDashboardData, 5000);
+fetchHistory7Days();
 </script>
 
 </body>
