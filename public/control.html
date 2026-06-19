@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Farm - Control</title>
+<title>Smart Farm - Control (Local Test)</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -127,7 +126,7 @@ font-size: 16px;
 <body>
 
 <div class="header">
-🌱 Smart Farm Control System
+🌱 Smart Farm Control System (โหมดทดสอบไม่มี Supabase)
 <button class="page2btn" onclick="goPage2()">ไปหน้าแดชบอร์ด →</button>
 </div>
 
@@ -181,13 +180,14 @@ font-size: 16px;
 </div>
 
 <script>
-const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 let ws;
-let devices=[];
 let lastTriggered={};
+
+// จำลองข้อมูลเริ่มต้นในระบบ (Mock Data) แทนการดึงจากฐานข้อมูล
+let devices = [
+    { name: "ปั๊มน้ำเมน", on_key: "เปิดปั๊มน้ำ", off_key: "ปิดปั๊มน้ำ", pin: "12", state: "OFF", time_on: "", time_off: "" },
+    { name: "สปริงเกลอร์", on_key: "เปิดสปริงเกลอร์", off_key: "ปิดสปริงเกลอร์", pin: "14", state: "OFF", time_on: "", time_off: "" }
+];
 
 function connectWS(){
     const renderHost = "smartfarm-server-fuos.onrender.com";
@@ -214,9 +214,11 @@ function connectWS(){
     ws.onerror=(err)=>{ console.error("WebSocket เกิดข้อผิดพลาด: ", err); };
 }
 
+// เปิดทำงาน WebSocket (หากบอร์ดฮาร์ดแวร์ต่อ Server นี้อยู่ก็จะสั่งงานข้ามเซิร์ฟเวอร์ได้จริง)
 connectWS();
 
-async function loadDevicesFromSupabase() {
+function renderDevices() {
+    // รีเซ็ตสล็อตทั้งหมดให้ว่างเปล่าก่อนเรนเดอร์ใหม่
     document.getElementById('deviceArea').innerHTML = `
         <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
         <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
@@ -225,18 +227,6 @@ async function loadDevicesFromSupabase() {
     
     document.getElementById('deviceSelect').innerHTML = '<option value="">เลือกอุปกรณ์</option>';
 
-    const { data, error } = await supabase
-        .from('devices')
-        .select('*')
-        .order('id', { ascending: true });
-
-    if (error) {
-        console.error("โหลดฐานข้อมูลไม่สำเร็จ:", error.message);
-        alert("โหลดข้อมูลไม่สำเร็จ: " + error.message);
-        return;
-    }
-
-    devices = data;
     devices.forEach(d => {
         createDeviceUI(d);
     });
@@ -247,8 +237,7 @@ function createDeviceUI(d){
     if(!slot) return;
 
     slot.classList.remove("empty");
-    // แนะนำให้ใส่ attribute ลงใน HTML element ให้ชัดเจน เพื่อให้ querySelector ค้นหาเจอ
-    slot.setAttribute("data-pin", d.pin);
+    slot.setAttribute("data-pin", d.pin); // ผูกแอตทริบิวต์สำหรับปุ่ม toggle
     
     const cleanOn = d.on_key ? d.on_key.trim() : "";
     const cleanOff = d.off_key ? d.off_key.trim() : "";
@@ -275,7 +264,7 @@ function createDeviceUI(d){
     document.getElementById('deviceSelect').appendChild(option);
 }
 
-async function addDevice(){
+function addDevice(){
     const nameInput = document.getElementById('deviceName');
     const onKeyInput = document.getElementById('onKey');
     const offKeyInput = document.getElementById('offKey');
@@ -288,38 +277,132 @@ async function addDevice(){
 
     if(!name||!on||!off||!pin){ alert("กรอกข้อมูลให้ครบทุกช่องก่อนกดเพิ่มครับ"); return; }
 
-    const { error } = await supabase.from('devices').insert([
-        { name: name, on_key: on, off_key: off, pin: pin, state: "OFF" }
-    ]);
+    // เช็คกรณี Pin ซ้ำกันในระบบโลคอล
+    if(devices.some(d => d.pin === pin)) { alert("GPIO นี้ถูกใช้งานไปแล้วครับ"); return; }
 
-    if(error){
-        console.error("Supabase Add Error:", error);
-        alert("ไม่สามารถเพิ่มอุปกรณ์ได้เนื่องจาก: " + error.message);
-    } else {
-        alert("เพิ่มอุปกรณ์สำเร็จแล้ว!");
-        nameInput.value=""; onKeyInput.value=""; offKeyInput.value=""; pinInputElement.value="";
-        loadDevicesFromSupabase();
-    }
+    // เพิ่มข้อมูลลงใน Array ตรงๆ 
+    devices.push({ name: name, on_key: on, off_key: off, pin: pin, state: "OFF", time_on: "", time_off: "" });
+
+    alert("เพิ่มอุปกรณ์สำเร็จแล้ว! (จำลองบนเว็บบราวเซอร์)");
+    nameInput.value=""; onKeyInput.value=""; offKeyInput.value=""; pinInputElement.value="";
+    renderDevices();
 }
 
-async function deleteDevice(pin){
+function deleteDevice(pin){
     if(confirm("คุณต้องการลบอุปกรณ์ช่องนี้ใช่หรือไม่?")) {
-        const { error } = await supabase.from('devices').delete().eq('pin', pin);
-        if(error) alert("ลบไม่สำเร็จ: " + error.message);
-        else loadDevicesFromSupabase();
+        devices = devices.filter(d => d.pin !== pin);
+        renderDevices();
     }
 }
 
 function toggleDevice(pin){
     const btn = document.querySelector(`[data-pin='${pin}'] .device`);
-    if(!btn) {
-        console.error("ไม่พบปุ่มกดของอุปกรณ์ Pin:", pin);
-        return;
-    }
-    // เช็คคลาสเพื่อสลับสถานะ
+    if(!btn) return;
     const nextState = btn.classList.contains("on") ? "off" : "on";
     setDeviceState(pin, nextState, true);
 }
 
-async function setDeviceState(pin, state, send=true){
-    const lowerState = state.
+function setDeviceState(pin, state, send=true){
+    const lowerState = state.toLowerCase();
+    const upperState = state.toUpperCase();
+
+    // เปลี่ยนสถานะใน Array โลคอล
+    devices.forEach(d=>{ if(d.pin==pin){ d.state = upperState; } });
+
+    // สลับสีและข้อความของปุ่มบนหน้าจอทันที
+    const btn=document.querySelector(`[data-pin='${pin}'] .device`);
+    if(btn){
+        btn.className="device " + lowerState;
+        btn.innerText = upperState;
+    }
+
+    console.log(`[Local Update] เปลี่ยนสถานะอุปกรณ์ Pin ${pin} เป็น ${upperState}`);
+
+    // ส่งสัญญาณไปหาบอร์ดฮาร์ดแวร์ผ่าน WebSocket (ถ้าต่อติดอยู่)
+    if(send && ws && ws.readyState === 1){
+        ws.send(JSON.stringify({
+            type:"control",
+            device:pin,
+            status:lowerState
+        }));
+    }
+}
+
+let recognition;
+
+function startVoice(){
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRecognition){ voiceText.innerText ="มือถือ/เบราว์เซอร์ไม่รองรับระบบเสียง"; return; }
+
+    if(recognition) { try { recognition.abort(); } catch(e) {} }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = "th-TH";
+    voiceText.innerText = "กำลังฟัง... พูดได้เลยครับ";
+    recognition.start();
+
+    recognition.onresult=(event)=>{
+        const text = event.results[0][0].transcript.toLowerCase().trim();
+        voiceText.innerText = "คุณพูดว่า: " + text;
+
+        devices.forEach(d=>{
+            const wordOn = d.on_key.toLowerCase().trim();
+            const wordOff = d.off_key.toLowerCase().trim();
+
+            if(text === wordOn || (wordOn.length > 2 && text.includes(wordOn))) {
+                setDeviceState(d.pin, "on", true);
+            } 
+            if(text === wordOff || (wordOff.length > 2 && text.includes(wordOff))) {
+                setDeviceState(d.pin, "off", true);
+            }
+        });
+    };
+
+    recognition.onerror=(e)=>{ voiceText.innerText = "เกิดข้อผิดพลาดในการรับเสียง"; };
+}
+
+function saveSchedule(){
+    const pin = document.getElementById('deviceSelect').value;
+    const onTime = document.getElementById('timeOn').value;
+    const offTime = document.getElementById('timeOff').value;
+    if(!pin) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
+
+    devices.forEach(d => {
+        if(d.pin === pin) {
+            d.time_on = onTime;
+            d.time_off = offTime;
+        }
+    });
+
+    document.getElementById('scheduleStatus').innerText = "บันทึกเวลาลงหน่วยความจำชั่วคราวแล้ว!";
+    setTimeout(() => { document.getElementById('scheduleStatus').innerText = ""; }, 3000);
+    renderDevices();
+}
+
+// ตรวจสอบเวลาทุกๆ 5 วินาทีเพื่อเปิด/ปิดอัตโนมัติ
+setInterval(()=>{
+    const now=new Date();
+    const time = now.getHours().toString().padStart(2,"0") + ":" + now.getMinutes().toString().padStart(2,"0");
+
+    devices.forEach(s=>{
+        const currentState = s.state ? s.state.toLowerCase() : "off";
+        
+        if(s.time_on == time && currentState !== "on" && lastTriggered[s.pin+"_on"] != time){
+            setDeviceState(s.pin, "on", true);
+            lastTriggered[s.pin+"_on"] = time;
+        }
+        if(s.time_off == time && currentState !== "off" && lastTriggered[s.pin+"_off"] != time){
+            setDeviceState(s.pin, "off", true);
+            lastTriggered[s.pin+"_off"] = time;
+        }
+    });
+},5000);
+
+function goPage2(){ alert("ลิ้งค์ไปที่หน้า dashboard.html"); }
+
+// สั่งรันชุดข้อมูลเริ่มต้นขึ้นหน้าจอทันทีเมื่อโหลดหน้าเว็บ
+renderDevices();
+</script>
+
+</body>
+</html>
