@@ -217,12 +217,14 @@ function connectWS(){
 connectWS();
 
 async function loadDevicesFromSupabase() {
+    // รีเซ็ตหน้าจอสล็อตให้ว่างเปล่าก่อนจัดเรียงใหม่ เพื่อป้องกัน UI เอ๋อค้างเวลาเพิ่ม/ลบอุปกรณ์
     document.getElementById('deviceArea').innerHTML = `
         <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
         <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
         <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
         <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
     
+    // เคลียร์ค่ารายชื่ออุปกรณ์ในช่องตั้งเวลาก่อน เพื่อป้องกันตัวเลือกซ้ำซ้อนกันหลายๆ รอบ
     document.getElementById('deviceSelect').innerHTML = '<option value="">เลือกอุปกรณ์</option>';
 
     const { data, error } = await supabase
@@ -232,6 +234,7 @@ async function loadDevicesFromSupabase() {
 
     if (error) {
         console.error("โหลดฐานข้อมูลไม่สำเร็จ:", error.message);
+        alert("โหลดข้อมูลไม่สำเร็จ: " + error.message);
         return;
     }
 
@@ -291,7 +294,8 @@ async function addDevice(){
     ]);
 
     if(error){
-        alert("ไม่สามารถเพิ่มอุปกรณ์ได้เนื่องจาก: " + error.message);
+        console.error("Supabase Add Error:", error);
+        alert("ไม่สามารถเพิ่มอุปกรณ์ได้เนื่องจาก: " + error.message + "\n(แนะนำ: เช็คชื่อคอลัมน์ใน Supabase ว่าตรงกับในโค้ดไหม หรือเปิด RLS หรือยัง)");
     } else {
         alert("เพิ่มอุปกรณ์สำเร็จแล้ว!");
         nameInput.value=""; onKeyInput.value=""; offKeyInput.value=""; pinInputElement.value="";
@@ -398,11 +402,12 @@ setInterval(()=>{
     const time = now.getHours().toString().padStart(2,"0") + ":" + now.getMinutes().toString().padStart(2,"0");
 
     devices.forEach(s=>{
-        if(s.time_on == time && lastTriggered[s.pin+"_on"] != time){
+        // เพิ่มเงื่อนไขเช็คสถานะฝั่ง Client ด้วย (s.state !== "on") เพื่อป้องกันการยิงคำสั่งเปิดซ้ำรัวๆ ลง Supabase ตลอดทั้งนาทีนั้น
+        if(s.time_on == time && s.state !== "on" && lastTriggered[s.pin+"_on"] != time){
             setDeviceState(s.pin, "on", true);
             lastTriggered[s.pin+"_on"] = time;
         }
-        if(s.time_off == time && lastTriggered[s.pin+"_off"] != time){
+        if(s.time_off == time && s.state !== "off" && lastTriggered[s.pin+"_off"] != time){
             setDeviceState(s.pin, "off", true);
             lastTriggered[s.pin+"_off"] = time;
         }
@@ -411,6 +416,7 @@ setInterval(()=>{
 
 function goPage2(){ location.href="dashboard.html"; }
 
+// เริ่มต้นโหลดข้อมูลจากฐานข้อมูลทันทีเมื่อเปิดหน้าเว็บ
 loadDevicesFromSupabase();
 </script>
 
