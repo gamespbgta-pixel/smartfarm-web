@@ -7,7 +7,215 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co"; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let devices = [];
+let currentUser = null;
+
+// ตรวจสอบสถานะการล็อกอินและโหลดข้อมูล
+async function checkAuthAndLoad() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+        alert("กรุณาเข้าสู่ระบบก่อนใช้งานหน้าควบคุม");
+        window.location.href = "login.html";
+        return;
+    }
+    
+    currentUser = user;
+    document.getElementById('user-display').innerText = `👤 ผู้ใช้งาน: ${user.email}`;
+    loadDevices();
+}
+
+// ดึงข้อมูลอุปกรณ์เฉพาะที่เป็นของ User คนนี้
+async function loadDevices() {
+    if(!currentUser) return;
+    console.log("กำลังโหลดข้อมูลอุปกรณ์ของคุณจาก Supabase...");
+    
+    const { data: dbDevices, error: devError } = await supabase
+        .from('devices')
+        .select('*')
+        .eq('user_id', currentUser.id) // ดึงเฉพาะของตัวเอง
+        .order('created_at', { ascending: true });
+
+    if (devError) { console.error(devError); return; }
+    
+    devices = dbDevices || [];
+
+    // ดึงสถานะเปิด-ปิดล่าสุดของอุปกรณ์แต่ละชิ้น
+    for (let i = 0; i < devices.length; i++) {
+        const { data: logData } = await supabase
+            .from('device_status_logs')
+            .select('status')
+            .eq('device_id', devices[i].id)
+            .order('changed_at', { ascending: false })
+            .limit(1);
+        
+        devices[i].state = (logData && logData.length > 0) ? (logData[0].status ? "ON" : "OFF") : "OFF";
+    }
+
+    renderDevices();
+}
+
+function renderDevices() {
+    document.getElementById('deviceArea').innerHTML = `
+        <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
+        <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
+        <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
+        <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
+
+    devices.forEach(d => {
+        createDeviceUI(d);
+    });
+}
+
+function createDeviceUI(d){
+    const slot = document.querySelector(".slot.empty");
+    if(!slot) return;
+
+    slot.classList.remove("empty");
+    slot.setAttribute("data-id", d.id); 
+    
+    const cleanState = d.state ? d.state.toLowerCase() : "off";
+    const mockOnKey = "เปิด" + d.name;
+    const mockOffKey = "ปิด" + d.name;
+
+    slot.innerHTML=`
+        <button class="deleteBtn" data-id="${d.id}">✕</button>
+        <h4>${d.name}</h4>
+        <button class="device-toggle ${cleanState} device" data-id="${d.id}">
+            ${cleanState.toUpperCase()}
+        </button>
+        <div class="info">สถานที่: ${d.location || "-"}</div>
+        <div class="info">🎤 เปิด: ${mockOnKey}</div>
+        <div class="info">🎤 ปิด: ${mockOffKey}</div>
+    `;
+}
+
+// ฟังก์ชันเพิ่มอุปกรณ์พร้อมแนบรหัสเจ้าของ (user_id)
+async function addDevice(){
+    if(!currentUser) return;
+    const nameInput = document.getElementById('deviceName');
+    const locationInput = document.getElementById('locationInput');
+
+    const name = nameInput.value.trim();
+    const location = locationInput.value.trim();
+
+    if(!name){ alert("กรอกชื่ออุปกรณ์ก่อนครับ"); return; }
+
+    const { data, error } = await supabase
+        .from('devices')
+        .insert([{ 
+            name: name, 
+            location: location,
+            user_id: currentUser.id // แนบรหัส User ไปยังฐานข้อมูล
+        }])
+        .select();
+
+    if(error) {
+        alert("เกิดข้อผิดพลาดในการบันทึก: " + error.message);
+    } else {
+        alert("เพิ่มอุปกรณ์สำเร็จ!");
+        nameInput.value=""; locationInput.value="";
+        loadDevices(); 
+    }
+}
+
+// ฟังก์ชันลบอุปกรณ์
+async function deleteDevice(id){
+    if(confirm("คุณต้องการลบอุปกรณ์ตัวนี้ใช่หรือไม่?")) {
+        const { error } = await supabase
+            .from('devices')
+            .delete()
+            .eq('id', id);
+
+        if(error) { alert(error.message); } else { loadDevices(); }
+    }
+}
+
+// ฟังก์ชันเปิด-ปิดการทำงาน
+async function setDeviceState(id, state){
+    const lowerState = state.toLowerCase();
+    const isStatusOn = lowerState === "on";
+
+    const { error } = await supabase
+        .from('device_status_logs')
+        .insert([{ device_id: id, status: isStatusOn }]);
+
+    if(error) {
+        console.error("บันทึกสถานะผิดพลาด:", error.message);
+        return;
+    }
+
+    devices.forEach(d=>{ if(d.id == id){ d.state = isStatusOn ? "ON" : "OFF"; } });
+    
+    const btn = document.querySelector(`button.device[data-id='${id}']`);
+    if(btn){
+        btn.className = "device " + lowerState;
+        btn.innerText = state.toUpperCase();
+    }
+}
+
+// ระบบคำสั่งเสียง (Voice) 
+let recognition;
+function startVoice(){
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRecognition){ document.getElementById("voiceText").innerText ="เบราว์เซอร์ไม่รองรับ"; return; }
+
+    if(recognition) { try { recognition.abort(); } catch(e) {} }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = "th-TH";
+    document.getElementById("voiceText").innerText = "กำลังฟัง... พูดได้เลยครับ";
+    recognition.start();
+
+    recognition.onresult=(event)=>{
+        const text = event.results[0][0].transcript.toLowerCase().trim();
+        document.getElementById("voiceText").innerText = "คุณพูดว่า: " + text;
+
+        devices.forEach(d=>{
+            const wordOn = ("เปิด" + d.name).toLowerCase();
+            const wordOff = ("ปิด" + d.name).toLowerCase();
+
+            if(text.includes(wordOn)) { setDeviceState(d.id, "on"); } 
+            if(text.includes(wordOff)) { setDeviceState(d.id, "off"); }
+        });
+    };
+}
+
+// ฟังก์ชันออกจากระบบ
+async function logout() {
+    await supabase.auth.signOut();
+    window.location.href = "login.html";
+}
+
+// ผูกฟังก์ชันเข้ากับปุ่มต่างๆ บนหน้าจอแบบ Dynamic (เนื่องจากใช้ `<script type="module">`)
+window.addDevice = addDevice;
+window.startVoice = startVoice;
+window.logout = logout;
+window.goPage2 = () => { alert("ไปหน้าแดชบอร์ดสรุปผลอุณหภูมิ/ระดับน้ำ"); };
+
+// มอบหมาย Event Click ให้กับปุ่มภายใน Slot อุปกรณ์
+document.addEventListener('click', function(e) {
+    if(e.target && e.target.classList.contains('deleteBtn')) {
+        deleteDevice(e.target.getAttribute('data-id'));
+    }
+    if(e.target && e.target.classList.contains('device-toggle')) {
+        const id = e.target.getAttribute('data-id');
+        const nextState = e.target.classList.contains("on") ? "off" : "on";
+        setDeviceState(id, nextState);
+    }
+});
+
+// เริ่มต้นเช็คสิทธิ์ล็อกอินทันทีเมื่อหน้าเว็บพร้อมทำงาน
+checkAuthAndLoad();
+</script>
 
 <style>
 *{box-sizing:border-box}
@@ -23,11 +231,16 @@ color:#fff;
 font-size:20px;
 font-weight:600;
 position:relative;
+display: flex;
+justify-content: space-between;
+align-items: center;
 }
-.page2btn{
-position:absolute;
-right:20px;
-top:12px;
+.header-right {
+display: flex;
+gap: 12px;
+align-items: center;
+}
+.page2btn, .logoutbtn{
 background:#fff;
 color:#27ae60;
 border:none;
@@ -35,6 +248,11 @@ padding:8px 16px;
 border-radius:12px;
 cursor:pointer;
 font-weight: 600;
+font-family:'Kanit',sans-serif;
+}
+.logoutbtn {
+background: #e74c3c;
+color: white;
 }
 .container{
 max-width:1300px;
@@ -81,6 +299,7 @@ font-size:18px;
 margin:12px auto;
 cursor:pointer;
 font-weight: 600;
+display: block;
 }
 .device.on{background:#2ecc71;color:#fff;}
 .device.off{background:#e74c3c;color:#fff;}
@@ -122,21 +341,26 @@ font-weight: 600;
 font-size: 16px;
 }
 .info{font-size:14px;margin-top:6px;}
+#user-display { font-size: 14px; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 8px;}
 </style>
 </head>
 
 <body>
 
 <div class="header">
-🌱 Smart Farm Control System (Supabase)
-<button class="page2btn" onclick="goPage2()">ไปหน้าแดชบอร์ด →</button>
+<div>🌱 Smart Farm Control System (Supabase)</div>
+<div class="header-right">
+    <span id="user-display">กำลังยืนยันตัวตน...</span>
+    <button class="page2btn" onclick="goPage2()">ไปหน้าแดชบอร์ด →</button>
+    <button class="logoutbtn" onclick="logout()">ออกจากระบบ</button>
+</div>
 </div>
 
 <div class="container">
 <div class="main">
 
 <div class="card">
-<h3>🔌 อุปกรณ์</h3>
+<h3>🔌 อุปกรณ์ของคุณ</h3>
 <div class="device-area" id="deviceArea">
 <div class="slot empty">ช่องที่ 1</div>
 <div class="slot empty">ช่องที่ 2</div>
@@ -152,12 +376,10 @@ font-size: 16px;
 <div>
 
 <div class="card">
-<h3>➕ เพิ่มอุปกรณ์</h3>
-<input id="deviceName" placeholder="ชื่ออุปกรณ์">
-<input id="onKey" placeholder="คำเปิด">
-<input id="offKey" placeholder="คำปิด">
-<input id="locationInput" placeholder="สถานที่ติดตั้ง เช่น โรงเรือน 1">
-<button class="add" onclick="addDevice()">เพิ่ม</button>
+<h3>➕ เพิ่มอุปกรณ์ใหม่</h3>
+<input id="deviceName" placeholder="ชื่ออุปกรณ์ เช่น ปั๊มน้ำ, พัดลม">
+<input id="locationInput" placeholder="สถานที่ติดตั้ง เช่น โรงเรือนที่ 1">
+<button class="add" onclick="addDevice()">เพิ่มเข้าฐานข้อมูล</button>
 </div>
 
 <div class="card">
@@ -169,185 +391,6 @@ font-size: 16px;
 </div>
 </div>
 </div>
-
-<script>
-// 2. ตั้งค่าการเชื่อมต่อฐานข้อมูลของคุณ
-const SUPABASE_URL = "zweosffxlaghnrvimdwx"; 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-let devices = [];
-
-// ฟังก์ชันหลักในการดึงรายชื่ออุปกรณ์และสถานะล่าสุดมาแสดงผล
-async function loadDevices() {
-    console.log("กำลังโหลดข้อมูลจาก Supabase...");
-    
-    // ดึงอุปกรณ์ทั้งหมด
-    const { data: dbDevices, error: devError } = await supabase
-        .from('devices')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-    if (devError) { console.error(devError); return; }
-    
-    devices = dbDevices || [];
-
-    // วนลูปเพื่อไปค้นหาสถานะปัจจุบัน (On/Off) ล่าสุดของแต่ละอุปกรณ์
-    for (let i = 0; i < devices.length; i++) {
-        const { data: logData } = await supabase
-            .from('device_status_logs')
-            .select('status')
-            .eq('device_id', devices[i].id)
-            .order('changed_at', { ascending: false })
-            .limit(1);
-        
-        // ถ้าเคยมีการกดยังมีประวัติ ให้เซ็ตค่าตามนั้น ถ้าไม่มีให้ดั้งเดิมเป็น off
-        devices[i].state = (logData && logData.length > 0) ? (logData[0].status ? "ON" : "OFF") : "OFF";
-    }
-
-    renderDevices();
-}
-
-function renderDevices() {
-    document.getElementById('deviceArea').innerHTML = `
-        <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
-        <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
-        <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
-        <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
-
-    devices.forEach(d => {
-        createDeviceUI(d);
-    });
-}
-
-function createDeviceUI(d){
-    const slot = document.querySelector(".slot.empty");
-    if(!slot) return;
-
-    slot.classList.remove("empty");
-    slot.setAttribute("data-id", d.id); // ผูก UUID แทนค่า GPIO เดิม
-    
-    const cleanState = d.state ? d.state.toLowerCase() : "off";
-
-    // เพื่อรักษาฟังก์ชันคำสั่งเสียงเดิมไว้ เราจะดึงข้อมูลเพิ่มจากช่อง Location มาประยุกต์เป็น คำเปิด/คำปิด ชั่วคราว
-    // (หมายเหตุ: ในระบบจริงแนะนำให้แก้ไขเพิ่มคอลัมน์ on_key, off_key ในตาราง devices เพิ่มเติมครับ)
-    const mockOnKey = "เปิด" + d.name;
-    const mockOffKey = "ปิด" + d.name;
-
-    slot.innerHTML=`
-        <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
-        <h4>${d.name}</h4>
-        <button class="device ${cleanState}" onclick="toggleDevice('${d.id}')">
-            ${cleanState.toUpperCase()}
-        </button>
-        <div class="info">สถานที่: ${d.location || "-"}</div>
-        <div class="info">🎤 เปิด: ${mockOnKey}</div>
-        <div class="info">🎤 ปิด: ${mockOffKey}</div>
-    `;
-}
-
-// ฟังก์ชันเพิ่มข้อมูลลงตาราง devices ของ Supabase
-async function addDevice(){
-    const nameInput = document.getElementById('deviceName');
-    const locationInput = document.getElementById('locationInput');
-
-    const name = nameInput.value.trim();
-    const location = locationInput.value.trim();
-
-    if(!name){ alert("กรอกชื่ออุปกรณ์ก่อนครับ"); return; }
-
-    const { data, error } = await supabase
-        .from('devices')
-        .insert([{ name: name, location: location }])
-        .select();
-
-    if(error) {
-        alert("เกิดข้อผิดพลาดในการบันทึก: " + error.message);
-    } else {
-        alert("เพิ่มอุปกรณ์ลง Supabase สำเร็จแล้ว!");
-        nameInput.value=""; locationInput.value="";
-        loadDevices(); // รีโหลดหน้าแสดงผลใหม่
-    }
-}
-
-// ฟังก์ชันลบอุปกรณ์ออกจากตาราง devices
-async function deleteDevice(id){
-    if(confirm("คุณต้องการลบอุปกรณ์ตัวนี้ใช่หรือไม่? (ประวัติต่างๆ จะถูกลบไปด้วย)")) {
-        const { error } = await supabase
-            .from('devices')
-            .delete()
-            .eq('id', id);
-
-        if(error) { alert(error.message); } else { loadDevices(); }
-    }
-}
-
-function toggleDevice(id){
-    const btn = document.querySelector(`[data-id='${id}'] .device`);
-    if(!btn) return;
-    const nextState = btn.classList.contains("on") ? "off" : "on";
-    setDeviceState(id, nextState);
-}
-
-// ฟังก์ชันสำหรับบันทึก Log การเปิด-ปิด ไปยังตาราง `device_status_logs`
-async function setDeviceState(id, state){
-    const lowerState = state.toLowerCase();
-    const isStatusOn = lowerState === "on";
-
-    // 1. บันทึกประวัติลงตาราง log ใน Supabase
-    const { error } = await supabase
-        .from('device_status_logs')
-        .insert([{ device_id: id, status: isStatusOn }]);
-
-    if(error) {
-        console.error("บันทึกสถานะผิดพลาด:", error.message);
-        return;
-    }
-
-    // 2. อัปเดต UI บนหน้าจอ
-    devices.forEach(d=>{ if(d.id == id){ d.state = isStatusOn ? "ON" : "OFF"; } });
-    
-    const btn = document.querySelector(`[data-id='${id}'] .device`);
-    if(btn){
-        btn.className = "device " + lowerState;
-        btn.innerText = state.toUpperCase();
-    }
-    console.log(`[Supabase Updated] บันทึกการเปลี่ยนสถานะ ID: ${id} เป็น ${state.toUpperCase()}`);
-}
-
-// --- ฟังก์ชันเสริม: ระบบคำสั่งเสียง (Voice Command) ---
-let recognition;
-function startVoice(){
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(!SpeechRecognition){ voiceText.innerText ="เบราว์เซอร์ไม่รองรับระบบเสียง"; return; }
-
-    if(recognition) { try { recognition.abort(); } catch(e) {} }
-
-    recognition = new SpeechRecognition();
-    recognition.lang = "th-TH";
-    voiceText.innerText = "กำลังฟัง... พูดได้เลยครับ";
-    recognition.start();
-
-    recognition.onresult=(event)=>{
-        const text = event.results[0][0].transcript.toLowerCase().trim();
-        voiceText.innerText = "คุณพูดว่า: " + text;
-
-        devices.forEach(d=>{
-            const wordOn = ("เปิด" + d.name).toLowerCase();
-            const wordOff = ("ปิด" + d.name).toLowerCase();
-
-            if(text.includes(wordOn)) { setDeviceState(d.id, "on"); } 
-            if(text.includes(wordOff)) { setDeviceState(d.id, "off"); }
-        });
-    };
-    recognition.onerror=(e)=>{ voiceText.innerText = "เกิดข้อผิดพลาดในการรับเสียง"; };
-}
-
-function goPage2(){ alert("ไปหน้า dashboard.html"); }
-
-// ทำการดึงข้อมูลจาก Supabase ทันทีที่เปิดหน้าเว็บ
-loadDevices();
-</script>
 
 </body>
 </html>
