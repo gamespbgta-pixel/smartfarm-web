@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Farm - ระบบสมาชิก</title>
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; font-family:'Kanit',sans-serif; }
 body { height:100vh; display:flex; justify-content:center; align-items:center; background:linear-gradient(135deg,#4CAF50,#2E7D32); }
@@ -62,7 +62,6 @@ const authForm = document.getElementById("auth-form");
 const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 
-// ผูกฟังก์ชันคลิกสลับหน้าจอผ่าน JavaScript โดยตรง ป้องกันปุ่มนิ่ง
 toggleView.addEventListener("click", () => {
     isLoginMode = !isLoginMode;
     messageDisplay.innerText = "";
@@ -77,7 +76,6 @@ toggleView.addEventListener("click", () => {
     }
 });
 
-// ผูกฟังก์ชันตอนกดส่งฟอร์ม
 authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const email = emailInput.value.trim();
@@ -87,7 +85,6 @@ authForm.addEventListener("submit", async (event) => {
     messageDisplay.className = "message";
 
     if (isLoginMode) {
-        // 🚀 สั่งล็อกอิน
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
@@ -99,10 +96,10 @@ authForm.addEventListener("submit", async (event) => {
         } else {
             messageDisplay.innerText = "เข้าสู่ระบบสำเร็จ! กำลังพาไปหน้าควบคุม...";
             messageDisplay.classList.add("success-text");
+            // เปลี่ยนไปหน้าควบคุมอุปกรณ์
             setTimeout(() => { window.location.href = "control.html"; }, 1500);
         }
     } else {
-        // 🚀 สั่งลงทะเบียน
         const { data, error } = await supabase.auth.signUp({
             email: email,
             password: password,
@@ -115,7 +112,6 @@ authForm.addEventListener("submit", async (event) => {
             messageDisplay.innerText = "ลงทะเบียนสำเร็จเรียบร้อยแล้ว!";
             messageDisplay.classList.add("success-text");
             setTimeout(() => {
-                // รีเซ็ตหน้าจอกลับมาโหมดล็อกอิน
                 isLoginMode = true;
                 formTitle.innerText = "Smart Farm Login";
                 btnSubmit.innerText = "เข้าสู่ระบบ";
