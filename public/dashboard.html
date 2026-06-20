@@ -5,7 +5,89 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard & History</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function fetchHistory7Days() {
+    const tbody = document.getElementById('logTableBody');
+    
+    // 1. ตรวจสอบการล็อกอินก่อนดึงประวัติ (ความปลอดภัย)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:orange;">กรุณาเข้าสู่ระบบก่อนดูข้อมูลประวัติ</td></tr>`;
+        return;
+    }
+
+    // 2. คำนวณเวลาถอยหลังย้อนไป 7 วัน
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const isoSevenDaysAgo = sevenDaysAgo.toISOString();
+
+    // 3. ดึงข้อมูลจากตาราง device_status_logs ร่วมกับข้อมูลชื่ออุปกรณ์จากตาราง devices
+    // โดยคัดกรองเฉพาะข้อมูลของคนที่ล็อกอิน (.eq) และย้อนหลัง 7 วัน (.gte)
+    const { data, error } = await supabase
+        .from('device_status_logs')
+        .select(`
+            status,
+            changed_at,
+            devices!inner (
+                name,
+                location,
+                user_id
+            )
+        `)
+        .eq('devices.user_id', user.id) // ดึงเฉพาะอุปกรณ์ที่สมาชิกคนนี้เป็นเจ้าของ
+        .gte('changed_at', isoSevenDaysAgo) // ดึงเฉพาะภายใน 7 วันล่าสุด
+        .order('changed_at', { ascending: false });
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">ข้อผิดพลาด: ${error.message}</td></tr>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#718096;">ไม่มีประวัติการใช้งานในช่วง 7 วันนี้</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = "";
+    
+    // 4. วนลูปวาดตารางจากข้อมูลจริงบน Supabase
+    data.forEach(log => {
+        const dateObj = new Date(log.changed_at);
+        const localTime = dateObj.toLocaleString('th-TH', { hour12: false });
+        
+        // แปลงสถานะ true -> ON, false -> OFF
+        const actionText = log.status ? 'ON' : 'OFF';
+        const badgeClass = log.status ? 'on' : 'off';
+        const deviceName = log.devices ? log.devices.name : 'ไม่ทราบชื่อ';
+        const locationText = log.devices && log.devices.location ? log.devices.location : '-';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>📅 ${localTime} น.</td>
+            <td style="font-weight:600;">🌱 ${deviceName}</td>
+            <td><code>📍 ${locationText}</code></td>
+            <td><span class="badge ${badgeClass}">${actionText}</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// ผูกฟังก์ชันกลับหน้าหลัก
+window.goBack = () => { window.location.href = "control.html"; };
+
+// ทำการดึงประวัติทันทีเมื่อเปิดหน้าจอ
+checkAuth();
+async function checkAuth() {
+    fetchHistory7Days();
+}
+</script>
 
 <style>
 *{box-sizing:border-box}
@@ -27,6 +109,7 @@ body{
     position:absolute; left:20px; top:12px;
     background:#fff; color:#2c3e50; border:none;
     padding:8px 16px; border-radius:12px; cursor:pointer; font-weight:600;
+    font-family:'Kanit',sans-serif;
 }
 .container{ max-width:1100px; margin:auto; padding:30px; }
 .card { background:#fff; padding:24px; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,.05); margin-bottom:25px; }
@@ -34,7 +117,7 @@ h3 { margin-top:0; color:#2c3e50; }
 .log-table { width:100%; border-collapse:collapse; margin-top:15px; }
 .log-table th, .log-table td { padding:14px; text-align:left; border-bottom:1px solid #edf2f7; }
 .log-table th { background:#f8fafc; color:#4a5568; font-weight:600; }
-.badge { padding:4px 10px; border-radius:12px; font-weight:600; font-size:12px; }
+.badge { padding:4px 10px; border-radius:12px; font-weight:600; font-size:12px; display:inline-block; width:50px; text-align:center;}
 .badge.on { background:#e6fffa; color:#234e52; }
 .badge.off { background:#fff5f5; color:#742a2a; }
 </style>
@@ -42,7 +125,7 @@ h3 { margin-top:0; color:#2c3e50; }
 <body>
 
 <div class="header">
-    <button class="back-btn" onclick="location.href='index.html'">← กลับหน้าหลัก</button>
+    <button class="back-btn" onclick="goBack()">← กลับหน้าควบคุม</button>
     📊 แดชบอร์ดและข้อมูลย้อนหลัง 7 วัน
 </div>
 
@@ -54,8 +137,8 @@ h3 { margin-top:0; color:#2c3e50; }
                 <tr>
                     <th>วัน-เวลาที่ทำงาน</th>
                     <th>ชื่ออุปกรณ์</th>
-                    <th>ขา GPIO</th>
-                    <th>การทำงานล่าสุด</th>
+                    <th>สถานที่ติดตั้ง</th>
+                    <th>สถานะการสั่งงาน</th>
                 </tr>
             </thead>
             <tbody id="logTableBody">
@@ -64,56 +147,6 @@ h3 { margin-top:0; color:#2c3e50; }
         </table>
     </div>
 </div>
-
-<script>
-const SUPABASE_URL = "https://kfdngjrmowoiprottymh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmZG5nanJtb3dvaXByb3R0eW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNTEwODUsImV4cCI6MjA5NjkyNzA4NX0.Gk49kkH0L0Ti0LN6jEBdpDHcSfEbV4zB93v_RTr_UvI";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-async function fetchHistory7Days() {
-    const tbody = document.getElementById('logTableBody');
-    
-    // คำนวณวันถอยหลังย้อนไป 7 วัน
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const isoSevenDaysAgo = sevenDaysAgo.toISOString();
-
-    // ดึงเฉพาะข้อมูลล็อกที่บันทึกไว้ภายใน 7 วันล่าสุด (.gte)
-    const { data, error } = await supabase
-        .from('device_logs')
-        .select('*')
-        .gte('created_at', isoSevenDaysAgo)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">ข้อผิดพลาด: ${error.message}</td></tr>`;
-        return;
-    }
-
-    if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#718096;">ไม่มีประวัติการใช้งานในช่วง 7 วันนี้</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = "";
-    data.forEach(log => {
-        const dateObj = new Date(log.created_at);
-        const localTime = dateObj.toLocaleString('th-TH', { hour12: false });
-        const badgeClass = log.action === 'ON' ? 'on' : 'off';
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>📅 ${localTime} น.</td>
-            <td style="font-weight:600;">🌱 ${log.device_name}</td>
-            <td><code>GPIO ${log.device_pin}</code></td>
-            <td><span class="badge ${badgeClass}">${log.action}</span></td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-fetchHistory7Days();
-</script>
 
 </body>
 </html>
