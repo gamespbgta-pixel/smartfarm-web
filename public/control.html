@@ -10,6 +10,7 @@
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
+// 🔗 เชื่อมต่อโปรเจกต์ Supabase ตัวล่าสุดของคุณ
 const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
 
@@ -20,63 +21,84 @@ let devices = [];
 let currentUser = null;
 let lastTriggered = {};
 
-// 1. ตรวจสอบสถานะการล็อกอินสมาชิก
+// 1. ตรวจสอบสถานะการล็อกอินสมาชิก (พร้อมระบบดักจับพัง ป้องกันหน้าขาว)
 async function checkAuthAndLoad() {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-        alert("กรุณาเข้าสู่ระบบก่อนใช้งานหน้าควบคุม");
-        window.location.href = "index.html";
-        return;
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error || !user) {
+            alert("กรุณาเข้าสู่ระบบก่อนใช้งานหน้าควบคุม");
+            window.location.href = "login.html";
+            return;
+        }
+        
+        currentUser = user;
+        
+        // ตรวจสอบ Element ก่อนเขียนข้อมูลเพื่อความปลอดภัย
+        const userDisplayEl = document.getElementById('user-display');
+        if (userDisplayEl) {
+            userDisplayEl.innerText = `👤 ผู้ใช้งาน: ${user.email}`;
+        }
+        
+        loadDevicesFromSupabase();
+        connectWS();
+    } catch (err) {
+        console.error("เกิดข้อผิดพลาดตอนยืนยันตัวตน: ", err);
     }
-    
-    currentUser = user;
-    document.getElementById('user-display').innerText = `👤 ผู้ใช้งาน: ${user.email}`;
-    
-    // โหลดข้อมูลจากฐานข้อมูล และ เปิดการเชื่อมต่อ WebSocket สั่งงานบอร์ด
-    loadDevicesFromSupabase();
-    connectWS();
 }
 
-// 2. ดึงข้อมูลอุปกรณ์และตั้งเวลาจาก Supabase (ดึงเฉพาะของเจ้าของบัญชี)
+// 2. ดึงข้อมูลอุปกรณ์และตั้งเวลาจาก Supabase (เจาะจงรายบุคคล)
 async function loadDevicesFromSupabase() {
     if (!currentUser) return;
-    console.log("กำลังดึงข้อมูลอุปกรณ์ของคุณจาก Supabase...");
-    
-    const { data: dbDevices, error: devError } = await supabase
-        .from('devices')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: true });
-
-    if (devError) { console.error(devError); return; }
-    
-    devices = dbDevices || [];
-
-    // ดึงสถานะ ล่าสุด (ON/OFF) ของอุปกรณ์จากตาราง Log ความเคลื่อนไหว
-    for (let i = 0; i < devices.length; i++) {
-        const { data: logData } = await supabase
-            .from('device_status_logs')
-            .select('status')
-            .eq('device_id', devices[i].id)
-            .order('changed_at', { ascending: false })
-            .limit(1);
+    try {
+        console.log("กำลังดึงข้อมูลอุปกรณ์ของคุณจาก Supabase...");
         
-        devices[i].state = (logData && logData.length > 0) ? (logData[0].status ? "ON" : "OFF") : "OFF";
-    }
+        const { data: dbDevices, error: devError } = await supabase
+            .from('devices')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: true });
 
-    renderDevices();
+        if (devError) throw devError;
+        
+        devices = dbDevices || [];
+
+        // ดึงประวัติ Log ล่าสุดมาเซ็ตปุ่มเปิด/ปิดเริ่มต้น
+        for (let i = 0; i < devices.length; i++) {
+            const { data: logData, error: logError } = await supabase
+                .from('device_status_logs')
+                .select('status')
+                .eq('device_id', devices[i].id)
+                .order('changed_at', { ascending: false })
+                .limit(1);
+            
+            if (!logError && logData && logData.length > 0) {
+                devices[i].state = logData[0].status ? "ON" : "OFF";
+            } else {
+                devices[i].state = "OFF";
+            }
+        }
+
+        renderDevices();
+    } catch (err) {
+        console.error("ดึงข้อมูลผิดพลาด: ", err.message);
+        renderDevices(); // บังคับให้โหลด Slots เปล่าขึ้นมาก่อนเพื่อไม่ให้ค้างหน้าขาว
+    }
 }
 
-// 3. เรนเดอร์สร้าง UI บนหน้าจอพล็อตใส่บล็อก Slot 1-8
+// 3. เรนเดอร์สร้างบล็อก Slot 1-8 บนเว็บอินเตอร์เฟซ
 function renderDevices() {
-    document.getElementById('deviceArea').innerHTML = `
+    const area = document.getElementById('deviceArea');
+    if (!area) return;
+
+    area.innerHTML = `
         <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
         <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
         <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
         <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
     
-    document.getElementById('deviceSelect').innerHTML = '<option value="">เลือกอุปกรณ์</option>';
+    const selectEl = document.getElementById('deviceSelect');
+    if (selectEl) selectEl.innerHTML = '<option value="">เลือกอุปกรณ์</option>';
 
     devices.forEach(d => {
         createDeviceUI(d);
@@ -110,14 +132,16 @@ function createDeviceUI(d) {
         </div>
     `;
 
-    // อัปเดตรายชื่อใน Dropdown เมนูตั้งเวลา
-    const option = document.createElement("option");
-    option.value = d.id;
-    option.textContent = d.name;
-    document.getElementById('deviceSelect').appendChild(option);
+    const selectEl = document.getElementById('deviceSelect');
+    if (selectEl) {
+        const option = document.createElement("option");
+        option.value = d.id;
+        option.textContent = d.name;
+        selectEl.appendChild(option);
+    }
 }
 
-// 4. ฟังก์ชันเพิ่มอุปกรณ์ใหม่ลงตาราง Supabase
+// 4. ฟังก์ชันเพิ่มอุปกรณ์ใหม่ลงฐานข้อมูล
 async function addDevice() {
     if (!currentUser) return;
     const nameInput = document.getElementById('deviceName');
@@ -131,11 +155,9 @@ async function addDevice() {
     const pin = pinInputElement.value.trim();
 
     if (!name || !on || !off || !pin) { alert("กรอกข้อมูลให้ครบทุกช่องก่อนครับ"); return; }
-
-    // ตรวจสอบขา GPIO ซ้ำซ้อนภายในบัญชีตัวเอง
     if (devices.some(d => d.pin === pin)) { alert("GPIO นี้ถูกใช้งานไปแล้วครับ"); return; }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
         .from('devices')
         .insert([{ 
             name: name, 
@@ -154,7 +176,7 @@ async function addDevice() {
     }
 }
 
-// 5. ฟังก์ชันลบอุปกรณ์ออกจากตาราง
+// 5. ฟังก์ชันลบอุปกรณ์
 async function deleteDevice(id) {
     if (confirm("คุณต้องการลบอุปกรณ์ตัวนี้ใช่หรือไม่?")) {
         const { error } = await supabase
@@ -166,32 +188,28 @@ async function deleteDevice(id) {
     }
 }
 
-// 6. ฟังก์ชันเปลี่ยนสถานะ (บันทึกลงฐานข้อมูลและสั่งส่งออก WebSocket สู่บอร์ดจริง)
+// 6. ฟังก์ชันสลับเปลี่ยนสถานะอุปกรณ์ (บันทึกลง Log + ส่งออก WebSocket)
 async function setDeviceState(id, pin, state, sendWS = true) {
     const lowerState = state.toLowerCase();
     const isStatusOn = lowerState === "on";
 
-    // กราวด์ข้อมูลอัปเดตลงตารางประวัติกิจกรรม (device_status_logs) เพื่อใช้ดึงดูย้อนหลัง 7 วัน
     const { error } = await supabase
         .from('device_status_logs')
         .insert([{ device_id: id, status: isStatusOn }]);
 
     if (error) {
-        console.error("บันทึกสถานะผิดพลาด:", error.message);
+        console.error("บันทึกประวัติการเปลี่ยนสถานะผิดพลาด:", error.message);
         return;
     }
 
-    // อัปเดตสถานะในตัวแปร Array บนเว็บซอร์สโค้ดปัจจุบัน
     devices.forEach(d => { if (d.id == id) { d.state = isStatusOn ? "ON" : "OFF"; } });
     
-    // เปลี่ยนสีสันปุ่มบนหน้าจอสดๆ 
     const btn = document.querySelector(`button.device-toggle[data-id='${id}']`);
     if (btn) {
         btn.className = "device device-toggle " + lowerState;
         btn.innerText = state.toUpperCase();
     }
 
-    // ส่งชุดคำสั่งสั่งการผ่านระบบท่อ WebSocket ข้ามไปยังเครื่องเซิร์ฟเวอร์หลักบอร์ดฮาร์ดแวร์
     if (sendWS && ws && ws.readyState === 1) {
         ws.send(JSON.stringify({
             type: "control",
@@ -201,7 +219,7 @@ async function setDeviceState(id, pin, state, sendWS = true) {
     }
 }
 
-// 7. ระบบบันทึกเวลาเปิด-ปิดอัตโนมัติลงบนตาราง Supabase
+// 7. ระบบบันทึกเงื่อนไขเวลาทำงานอัตโนมัติ
 async function saveSchedule() {
     const id = document.getElementById('deviceSelect').value;
     const onTime = document.getElementById('timeOn').value;
@@ -216,13 +234,16 @@ async function saveSchedule() {
     if (error) {
         alert("บันทึกเวลาไม่สำเร็จ: " + error.message);
     } else {
-        document.getElementById('scheduleStatus').innerText = "บันทึกเวลาลงฐานข้อมูลเรียบร้อย!";
-        setTimeout(() => { document.getElementById('scheduleStatus').innerText = ""; }, 3000);
+        const statusEl = document.getElementById('scheduleStatus');
+        if (statusEl) {
+            statusEl.innerText = "บันทึกเวลาลงฐานข้อมูลเรียบร้อย!";
+            setTimeout(() => { statusEl.innerText = ""; }, 3000);
+        }
         loadDevicesFromSupabase();
     }
 }
 
-// 8. ลูปทำงานตรวจสอบเวลา (คล็อกปลุกอัตโนมัติ) ตรวจเช็คทุก 5 วินาที
+// 8. ลูปตรวจสอบนาฬิกาปลุกสั่งงานอัตโนมัติ ทุกๆ 5 วินาที
 setInterval(() => {
     const now = new Date();
     const time = now.getHours().toString().padStart(2, "0") + ":" + now.getMinutes().toString().padStart(2, "0");
@@ -241,22 +262,23 @@ setInterval(() => {
     });
 }, 5000);
 
-// 9. ระบบเปิดไมค์คำสั่งเสียงอัจฉริยะ (Voice Command)
+// 9. ระบบเปิดรับคำสั่งเสียงภาษาไทย
 let recognition;
 function startVoice() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { document.getElementById("voiceText").innerText = "เบราว์เซอร์ไม่รองรับ"; return; }
+    const voiceTextEl = document.getElementById("voiceText");
+    if (!SpeechRecognition) { if (voiceTextEl) voiceTextEl.innerText = "เบราว์เซอร์ไม่รองรับ"; return; }
 
     if (recognition) { try { recognition.abort(); } catch (e) {} }
 
     recognition = new SpeechRecognition();
     recognition.lang = "th-TH";
-    document.getElementById("voiceText").innerText = "กำลังฟัง... พูดได้เลยครับ";
+    if (voiceTextEl) voiceTextEl.innerText = "กำลังฟัง... พูดได้เลยครับ";
     recognition.start();
 
     recognition.onresult = (event) => {
         const text = event.results[0][0].transcript.toLowerCase().trim();
-        document.getElementById("voiceText").innerText = "คุณพูดว่า: " + text;
+        if (voiceTextEl) voiceTextEl.innerText = "คุณพูดว่า: " + text;
 
         devices.forEach(d => {
             const wordOn = d.on_key.toLowerCase().trim();
@@ -272,7 +294,7 @@ function startVoice() {
     };
 }
 
-// 10. ท่อเชื่อมต่อข้อความสดข้ามฝั่ง (WebSocket Gateway)
+// 10. ระบบทางเดินสาย WebSocket Gateway สัญญาณสดไปที่บอร์ดจริง
 function connectWS() {
     const renderHost = "smartfarm-server-fuos.onrender.com";
     ws = new WebSocket("wss://" + renderHost);
@@ -283,7 +305,6 @@ function connectWS() {
 
     ws.onmessage = (msg) => {
         const data = JSON.parse(msg.data);
-        // เมื่อได้รับสัญญาณจากฝั่งบอร์ด ESP32 อัปเดตสลับค่าตามจริงกลับมา
         if (data.device) {
             const match = devices.find(d => d.pin == data.device);
             if (match) {
@@ -295,20 +316,20 @@ function connectWS() {
     ws.onclose = () => { setTimeout(connectWS, 5000); };
 }
 
-// 11. ออกจากระบบบัญชี
+// 11. ฟังก์ชันสัญญลักษณ์ปิดบัญชีล็อกเอาต์
 async function logout() {
     await supabase.auth.signOut();
     window.location.href = "login.html";
 }
 
-// ผูกฟังก์ชันเข้ากับวินโดว์เพื่อให้ปุ่ม HTML (onclick) เรียกใช้งานได้
+// ผูกขอบเขตฟังก์ชันเข้า Window Component
 window.addDevice = addDevice;
 window.startVoice = startVoice;
 window.saveSchedule = saveSchedule;
 window.logout = logout;
-window.goPage2 = () => { window.location.href = "dashboard.html"; };
+window.goPage2 = () => { window.location.href = "history.html"; };
 
-// มอบหมาย Event Click สั่งงานปุ่มภายในโครงสร้างแบบไดนามิก
+// มอบหมายเหตุการณ์คลิกให้กับปุ่มแบบไดนามิก
 document.addEventListener('click', function(e) {
     if (e.target && e.target.classList.contains('deleteBtn')) {
         deleteDevice(e.target.getAttribute('data-id'));
@@ -321,7 +342,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// รันการตรวจสอบความปลอดภัยของสิทธิ์ผู้ใช้ทันทีเมื่อเปิดหน้าจอ
+// เริ่มกระบวนการคิวรีระบบทันทีที่เปิดหน้าจอ
 checkAuthAndLoad();
 </script>
 
@@ -390,3 +411,24 @@ padding:14px;
 min-height:260px;
 text-align:center;
 position:relative;
+}
+.slot.empty{
+display:flex;
+align-items:center;
+justify-content:center;
+color:#95a5a6;
+min-height:260px;
+}
+.device{
+width:90px;
+height:90px;
+border-radius:50%;
+border:none;
+font-size:18px;
+margin:12px auto;
+cursor:pointer;
+font-weight: 600;
+display: block;
+}
+.device.on{background:#2ecc71;color:#fff;}
+.device.off{background:#e74c3c;
