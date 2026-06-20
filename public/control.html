@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Farm - Control (Local Test)</title>
+<title>Smart Farm - Control (Supabase Integration)</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -126,7 +128,7 @@ font-size: 16px;
 <body>
 
 <div class="header">
-🌱 Smart Farm Control System 
+🌱 Smart Farm Control System (Supabase)
 <button class="page2btn" onclick="goPage2()">ไปหน้าแดชบอร์ด →</button>
 </div>
 
@@ -182,12 +184,28 @@ font-size: 16px;
 <script>
 let ws;
 let lastTriggered={};
+let devices = [];
 
-// จำลองข้อมูลเริ่มต้นในระบบ (Mock Data) แทนการดึงจากฐานข้อมูล
-let devices = [
-    { name: "ปั๊มน้ำเมน", on_key: "เปิดปั๊มน้ำ", off_key: "ปิดปั๊มน้ำ", pin: "12", state: "OFF", time_on: "", time_off: "" },
-    { name: "สปริงเกลอร์", on_key: "เปิดสปริงเกลอร์", off_key: "ปิดสปริงเกลอร์", pin: "14", state: "OFF", time_on: "", time_off: "" }
-];
+// 2. ตั้งค่า Supabase Client (เปลี่ยน URL และ Key เป็นของคุณเอง)
+const SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co";
+const SUPABASE_KEY = "YOUR_ANON_PUBLIC_KEY";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ฟังก์ชันดึงข้อมูลจาก Supabase Table ชื่อ "devices"
+async function fetchDevices() {
+    try {
+        const { data, error } = await supabase
+            .from('devices')
+            .select('*')
+            .order('pin', { ascending: true });
+
+        if (error) throw error;
+        devices = data;
+        renderDevices();
+    } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการดึงข้อมูลจาก Supabase:", err.message);
+    }
+}
 
 function connectWS(){
     const renderHost = "smartfarm-server-fuos.onrender.com";
@@ -202,6 +220,7 @@ function connectWS(){
     ws.onmessage=(msg)=>{
         const data=JSON.parse(msg.data);
         if(data.device){
+            // รับค่าจาก WebSocket แล้วไปอัปเดตลงหน้าเว็บแบบนุ่มนวล (ไม่ต้อง fetch ใหม่ทั้งหมด)
             setDeviceState(data.device, data.status, false);
         }
     };
@@ -214,11 +233,9 @@ function connectWS(){
     ws.onerror=(err)=>{ console.error("WebSocket เกิดข้อผิดพลาด: ", err); };
 }
 
-// เปิดทำงาน WebSocket (หากบอร์ดฮาร์ดแวร์ต่อ Server นี้อยู่ก็จะสั่งงานข้ามเซิร์ฟเวอร์ได้จริง)
 connectWS();
 
 function renderDevices() {
-    // รีเซ็ตสล็อตทั้งหมดให้ว่างเปล่าก่อนเรนเดอร์ใหม่
     document.getElementById('deviceArea').innerHTML = `
         <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
         <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
@@ -237,7 +254,7 @@ function createDeviceUI(d){
     if(!slot) return;
 
     slot.classList.remove("empty");
-    slot.setAttribute("data-pin", d.pin); // ผูกแอตทริบิวต์สำหรับปุ่ม toggle
+    slot.setAttribute("data-pin", d.pin);
     
     const cleanOn = d.on_key ? d.on_key.trim() : "";
     const cleanOff = d.off_key ? d.off_key.trim() : "";
@@ -264,7 +281,8 @@ function createDeviceUI(d){
     document.getElementById('deviceSelect').appendChild(option);
 }
 
-function addDevice(){
+// ฟังก์ชันเพิ่มข้อมูลลง Supabase
+async function addDevice(){
     const nameInput = document.getElementById('deviceName');
     const onKeyInput = document.getElementById('onKey');
     const offKeyInput = document.getElementById('offKey');
@@ -276,22 +294,39 @@ function addDevice(){
     const pin = pinInputElement.value.trim();
 
     if(!name||!on||!off||!pin){ alert("กรอกข้อมูลให้ครบทุกช่องก่อนกดเพิ่มครับ"); return; }
-
-    // เช็คกรณี Pin ซ้ำกันในระบบโลคอล
     if(devices.some(d => d.pin === pin)) { alert("GPIO นี้ถูกใช้งานไปแล้วครับ"); return; }
 
-    // เพิ่มข้อมูลลงใน Array ตรงๆ 
-    devices.push({ name: name, on_key: on, off_key: off, pin: pin, state: "OFF", time_on: "", time_off: "" });
+    try {
+        const { error } = await supabase
+            .from('devices')
+            .insert([{ name: name, on_key: on, off_key: off, pin: pin, state: "OFF", time_on: "", time_off: "" }]);
 
-    alert("เพิ่มอุปกรณ์สำเร็จแล้ว! (จำลองบนเว็บบราวเซอร์)");
-    nameInput.value=""; onKeyInput.value=""; offKeyInput.value=""; pinInputElement.value="";
-    renderDevices();
+        if (error) throw error;
+
+        alert("เพิ่มอุปกรณ์ลงฐานข้อมูลสำเร็จ!");
+        nameInput.value=""; onKeyInput.value=""; offKeyInput.value=""; pinInputElement.value="";
+        
+        // ดึงข้อมูลใหม่จาก Supabase มาอัปเดตหน้าจอ
+        fetchDevices();
+    } catch (err) {
+        alert("ไม่สามารถเพิ่มอุปกรณ์ได้: " + err.message);
+    }
 }
 
-function deleteDevice(pin){
+// ฟังก์ชันลบข้อมูลออกจาก Supabase
+async function deleteDevice(pin){
     if(confirm("คุณต้องการลบอุปกรณ์ช่องนี้ใช่หรือไม่?")) {
-        devices = devices.filter(d => d.pin !== pin);
-        renderDevices();
+        try {
+            const { error } = await supabase
+                .from('devices')
+                .delete()
+                .eq('pin', pin);
+
+            if (error) throw error;
+            fetchDevices();
+        } catch (err) {
+            alert("ไม่สามารถลบอุปกรณ์ได้: " + err.message);
+        }
     }
 }
 
@@ -302,29 +337,39 @@ function toggleDevice(pin){
     setDeviceState(pin, nextState, true);
 }
 
-function setDeviceState(pin, state, send=true){
+// ฟังก์ชันเปลี่ยนสถานะอุปกรณ์ และอัปเดตลง Supabase
+async function setDeviceState(pin, state, send=true){
     const lowerState = state.toLowerCase();
     const upperState = state.toUpperCase();
 
-    // เปลี่ยนสถานะใน Array โลคอล
+    // 1. อัปเดต UI บนหน้าจอและ Array โลคอลทันทีเพื่อความรวดเร็ว
     devices.forEach(d=>{ if(d.pin==pin){ d.state = upperState; } });
-
-    // สลับสีและข้อความของปุ่มบนหน้าจอทันที
     const btn=document.querySelector(`[data-pin='${pin}'] .device`);
     if(btn){
         btn.className="device " + lowerState;
         btn.innerText = upperState;
     }
 
-    console.log(`[Local Update] เปลี่ยนสถานะอุปกรณ์ Pin ${pin} เป็น ${upperState}`);
-
-    // ส่งสัญญาณไปหาบอร์ดฮาร์ดแวร์ผ่าน WebSocket (ถ้าต่อติดอยู่)
+    // 2. ส่งสัญญาณหาบอร์ดผ่าน WebSocket
     if(send && ws && ws.readyState === 1){
         ws.send(JSON.stringify({
             type:"control",
             device:pin,
             status:lowerState
         }));
+    }
+
+    // 3. ทำการอัปเดตสถานะลงฐานข้อมูล Supabase
+    try {
+        const { error } = await supabase
+            .from('devices')
+            .update({ state: upperState })
+            .eq('pin', pin);
+        
+        if (error) throw error;
+        console.log(`[Supabase Updated] อุปกรณ์ Pin ${pin} -> ${upperState}`);
+    } catch (err) {
+        console.error("Supabase อัปเดตสถานะล้มเหลว:", err.message);
     }
 }
 
@@ -361,25 +406,31 @@ function startVoice(){
     recognition.onerror=(e)=>{ voiceText.innerText = "เกิดข้อผิดพลาดในการรับเสียง"; };
 }
 
-function saveSchedule(){
+// ฟังก์ชันบันทึกเวลาลง Supabase
+async function saveSchedule(){
     const pin = document.getElementById('deviceSelect').value;
     const onTime = document.getElementById('timeOn').value;
     const offTime = document.getElementById('timeOff').value;
     if(!pin) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
 
-    devices.forEach(d => {
-        if(d.pin === pin) {
-            d.time_on = onTime;
-            d.time_off = offTime;
-        }
-    });
+    try {
+        const { error } = await supabase
+            .from('devices')
+            .update({ time_on: onTime, time_off: offTime })
+            .eq('pin', pin);
 
-    document.getElementById('scheduleStatus').innerText = "บันทึกเวลาลงหน่วยความจำชั่วคราวแล้ว!";
-    setTimeout(() => { document.getElementById('scheduleStatus').innerText = ""; }, 3000);
-    renderDevices();
+        if (error) throw error;
+
+        document.getElementById('scheduleStatus').innerText = "บันทึกเวลาลง Supabase สำเร็จ!";
+        setTimeout(() => { document.getElementById('scheduleStatus').innerText = ""; }, 3000);
+        
+        fetchDevices();
+    } catch (err) {
+        alert("บันทึกเวลาล้มเหลว: " + err.message);
+    }
 }
 
-// ตรวจสอบเวลาทุกๆ 5 วินาทีเพื่อเปิด/ปิดอัตโนมัติ
+// ตรวจสอบเวลาเปิด/ปิดอัตโนมัติ
 setInterval(()=>{
     const now=new Date();
     const time = now.getHours().toString().padStart(2,"0") + ":" + now.getMinutes().toString().padStart(2,"0");
@@ -400,8 +451,8 @@ setInterval(()=>{
 
 function goPage2(){ alert("ลิ้งค์ไปที่หน้า dashboard.html"); }
 
-// สั่งรันชุดข้อมูลเริ่มต้นขึ้นหน้าจอทันทีเมื่อโหลดหน้าเว็บ
-renderDevices();
+// เริ่มต้นดึงข้อมูลจากฐานข้อมูล Supabase เมื่อเปิดหน้าเว็บ
+fetchDevices();
 </script>
 
 </body>
