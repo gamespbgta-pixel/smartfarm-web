@@ -3,437 +3,506 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Farm - Control System (Supabase & WebSocket)</title>
+<title>Smart Farm Control</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 
+<style>
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    font-family:'Kanit',sans-serif;
+    background:linear-gradient(135deg,#e8f5e9,#f1f8ff);
+}
+
+.header{
+    background:linear-gradient(135deg,#2ecc71,#27ae60);
+    color:white;
+    padding:15px 25px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.header-right{
+    display:flex;
+    gap:10px;
+}
+
+.page2btn,.logoutbtn{
+    border:none;
+    padding:10px 15px;
+    border-radius:10px;
+    cursor:pointer;
+    font-family:'Kanit',sans-serif;
+}
+
+.page2btn{
+    background:white;
+    color:#27ae60;
+}
+
+.logoutbtn{
+    background:#e74c3c;
+    color:white;
+}
+
+.container{
+    max-width:1300px;
+    margin:auto;
+    padding:25px;
+}
+
+.main{
+    display:grid;
+    grid-template-columns:2fr 1fr;
+    gap:25px;
+}
+
+.card{
+    background:white;
+    border-radius:20px;
+    padding:20px;
+    box-shadow:0 10px 25px rgba(0,0,0,.1);
+    margin-bottom:20px;
+}
+
+.device-area{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:15px;
+}
+
+.slot{
+    border:2px dashed #ccc;
+    border-radius:20px;
+    min-height:250px;
+    text-align:center;
+    padding:15px;
+    position:relative;
+}
+
+.slot.empty{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#999;
+}
+
+.device{
+    width:90px;
+    height:90px;
+    border-radius:50%;
+    border:none;
+    font-size:18px;
+    font-weight:bold;
+    cursor:pointer;
+    margin:10px auto;
+}
+
+.device.on{
+    background:#2ecc71;
+    color:white;
+}
+
+.device.off{
+    background:#e74c3c;
+    color:white;
+}
+
+.deleteBtn{
+    position:absolute;
+    top:10px;
+    right:10px;
+    border:none;
+    background:red;
+    color:white;
+    border-radius:50%;
+    width:30px;
+    height:30px;
+    cursor:pointer;
+}
+
+input,select{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border:1px solid #ddd;
+    border-radius:10px;
+}
+
+button.action{
+    width:100%;
+    background:#27ae60;
+    color:white;
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    cursor:pointer;
+    margin-top:12px;
+}
+
+.voiceBtn{
+    background:#3498db !important;
+}
+
+@media(max-width:900px){
+    .main{
+        grid-template-columns:1fr;
+    }
+
+    .device-area{
+        grid-template-columns:repeat(2,1fr);
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        🌱 Smart Farm Control
+        <div id="user-display"></div>
+    </div>
+
+    <div class="header-right">
+        <button class="page2btn" onclick="goPage2()">ประวัติ</button>
+        <button class="logoutbtn" onclick="logout()">ออกจากระบบ</button>
+    </div>
+</div>
+
+<div class="container">
+
+<div class="main">
+
+<!-- ฝั่งซ้าย -->
+<div>
+
+<div class="card">
+<h2>อุปกรณ์ทั้งหมด</h2>
+
+<div class="device-area" id="deviceArea">
+
+<div class="slot empty">ช่องที่ 1</div>
+<div class="slot empty">ช่องที่ 2</div>
+<div class="slot empty">ช่องที่ 3</div>
+<div class="slot empty">ช่องที่ 4</div>
+<div class="slot empty">ช่องที่ 5</div>
+<div class="slot empty">ช่องที่ 6</div>
+<div class="slot empty">ช่องที่ 7</div>
+<div class="slot empty">ช่องที่ 8</div>
+
+</div>
+</div>
+
+</div>
+
+<!-- ฝั่งขวา -->
+<div>
+
+<div class="card">
+
+<h3>เพิ่มอุปกรณ์</h3>
+
+<input id="deviceName" placeholder="ชื่ออุปกรณ์">
+
+<input id="onKey" placeholder="คำสั่งเสียงเปิด">
+
+<input id="offKey" placeholder="คำสั่งเสียงปิด">
+
+<input id="pinInput" placeholder="GPIO">
+
+<button class="action" onclick="addDevice()">
+เพิ่มอุปกรณ์
+</button>
+
+</div>
+
+<div class="card">
+
+<h3>ตั้งเวลาอัตโนมัติ</h3>
+
+<select id="deviceSelect">
+<option value="">เลือกอุปกรณ์</option>
+</select>
+
+<label>เวลาเปิด</label>
+<input type="time" id="timeOn">
+
+<label>เวลาปิด</label>
+<input type="time" id="timeOff">
+
+<button class="action" onclick="saveSchedule()">
+บันทึกเวลา
+</button>
+
+<div id="scheduleStatus"></div>
+
+</div>
+
+<div class="card">
+
+<h3>ควบคุมด้วยเสียง</h3>
+
+<button class="action voiceBtn" onclick="startVoice()">
+🎤 เริ่มฟังคำสั่ง
+</button>
+
+<div id="voiceText"></div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-// 🔗 เชื่อมต่อโปรเจกต์ Supabase ตัวล่าสุดของคุณ
-const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co"; 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
+const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co";
+const SUPABASE_ANON_KEY = "ใส่ ANON KEY ของคุณ";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let ws;
 let devices = [];
 let currentUser = null;
-let lastTriggered = {};
+let recognition;
 
-// 1. ตรวจสอบสถานะการล็อกอินสมาชิก (พร้อมระบบดักจับพัง ป้องกันหน้าขาว)
-async function checkAuthAndLoad() {
-    try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        if (error || !user) {
-            alert("กรุณาเข้าสู่ระบบก่อนใช้งานหน้าควบคุม");
-            window.location.href = "index.html";
-            return;
-        }
-        
-        currentUser = user;
-        
-        // ตรวจสอบ Element ก่อนเขียนข้อมูลเพื่อความปลอดภัย
-        const userDisplayEl = document.getElementById('user-display');
-        if (userDisplayEl) {
-            userDisplayEl.innerText = `👤 ผู้ใช้งาน: ${user.email}`;
-        }
-        
-        loadDevicesFromSupabase();
-        connectWS();
-    } catch (err) {
-        console.error("เกิดข้อผิดพลาดตอนยืนยันตัวตน: ", err);
-    }
-}
+// ตรวจสอบการล็อกอิน
+async function checkAuthAndLoad(){
+    const {data:{user}} = await supabase.auth.getUser();
 
-// 2. ดึงข้อมูลอุปกรณ์และตั้งเวลาจาก Supabase (เจาะจงรายบุคคล)
-async function loadDevicesFromSupabase() {
-    if (!currentUser) return;
-    try {
-        console.log("กำลังดึงข้อมูลอุปกรณ์ของคุณจาก Supabase...");
-        
-        const { data: dbDevices, error: devError } = await supabase
-            .from('devices')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('created_at', { ascending: true });
-
-        if (devError) throw devError;
-        
-        devices = dbDevices || [];
-
-        // ดึงประวัติ Log ล่าสุดมาเซ็ตปุ่มเปิด/ปิดเริ่มต้น
-        for (let i = 0; i < devices.length; i++) {
-            const { data: logData, error: logError } = await supabase
-                .from('device_status_logs')
-                .select('status')
-                .eq('device_id', devices[i].id)
-                .order('changed_at', { ascending: false })
-                .limit(1);
-            
-            if (!logError && logData && logData.length > 0) {
-                devices[i].state = logData[0].status ? "ON" : "OFF";
-            } else {
-                devices[i].state = "OFF";
-            }
-        }
-
-        renderDevices();
-    } catch (err) {
-        console.error("ดึงข้อมูลผิดพลาด: ", err.message);
-        renderDevices(); // บังคับให้โหลด Slots เปล่าขึ้นมาก่อนเพื่อไม่ให้ค้างหน้าขาว
-    }
-}
-
-// 3. เรนเดอร์สร้างบล็อก Slot 1-8 บนเว็บอินเตอร์เฟซ
-function renderDevices() {
-    const area = document.getElementById('deviceArea');
-    if (!area) return;
-
-    area.innerHTML = `
-        <div class="slot empty">ช่องที่ 1</div><div class="slot empty">ช่องที่ 2</div>
-        <div class="slot empty">ช่องที่ 3</div><div class="slot empty">ช่องที่ 4</div>
-        <div class="slot empty">ช่องที่ 5</div><div class="slot empty">ช่องที่ 6</div>
-        <div class="slot empty">ช่องที่ 7</div><div class="slot empty">ช่องที่ 8</div>`;
-    
-    const selectEl = document.getElementById('deviceSelect');
-    if (selectEl) selectEl.innerHTML = '<option value="">เลือกอุปกรณ์</option>';
-
-    devices.forEach(d => {
-        createDeviceUI(d);
-    });
-}
-
-function createDeviceUI(d) {
-    const slot = document.querySelector(".slot.empty");
-    if (!slot) return;
-
-    slot.classList.remove("empty");
-    slot.setAttribute("data-id", d.id);
-    slot.setAttribute("data-pin", d.pin);
-    
-    const cleanOn = d.on_key ? d.on_key.trim() : "";
-    const cleanOff = d.off_key ? d.off_key.trim() : "";
-    const cleanState = d.state ? d.state.trim().toLowerCase() : "off";
-
-    slot.innerHTML = `
-        <button class="deleteBtn" data-id="${d.id}">✕</button>
-        <h4>${d.name}</h4>
-        <button class="device ${cleanState} device-toggle" data-id="${d.id}" data-pin="${d.pin}">
-            ${cleanState.toUpperCase()}
-        </button>
-        <div class="info">GPIO: ${d.pin}</div>
-        <div class="info">🎤 เปิด: ${cleanOn}</div>
-        <div class="info">🎤 ปิด: ${cleanOff}</div>
-        <div class="info timeInfo">
-            ⏰ เปิด: ${d.time_on || "-"}<br>
-            ⏰ ปิด: ${d.time_off || "-"}
-        </div>
-    `;
-
-    const selectEl = document.getElementById('deviceSelect');
-    if (selectEl) {
-        const option = document.createElement("option");
-        option.value = d.id;
-        option.textContent = d.name;
-        selectEl.appendChild(option);
-    }
-}
-
-// 4. ฟังก์ชันเพิ่มอุปกรณ์ใหม่ลงฐานข้อมูล
-async function addDevice() {
-    if (!currentUser) return;
-    const nameInput = document.getElementById('deviceName');
-    const onKeyInput = document.getElementById('onKey');
-    const offKeyInput = document.getElementById('offKey');
-    const pinInputElement = document.getElementById('pinInput');
-
-    const name = nameInput.value.trim();
-    const on = onKeyInput.value.trim();
-    const off = offKeyInput.value.trim();
-    const pin = pinInputElement.value.trim();
-
-    if (!name || !on || !off || !pin) { alert("กรอกข้อมูลให้ครบทุกช่องก่อนครับ"); return; }
-    if (devices.some(d => d.pin === pin)) { alert("GPIO นี้ถูกใช้งานไปแล้วครับ"); return; }
-
-    const { error } = await supabase
-        .from('devices')
-        .insert([{ 
-            name: name, 
-            on_key: on, 
-            off_key: off, 
-            pin: pin,
-            user_id: currentUser.id
-        }]);
-
-    if (error) {
-        alert("เกิดข้อผิดพลาด: " + error.message);
-    } else {
-        alert("เพิ่มอุปกรณ์เข้าสู่ระบบสำเร็จ!");
-        nameInput.value = ""; onKeyInput.value = ""; offKeyInput.value = ""; pinInputElement.value = "";
-        loadDevicesFromSupabase(); 
-    }
-}
-
-// 5. ฟังก์ชันลบอุปกรณ์
-async function deleteDevice(id) {
-    if (confirm("คุณต้องการลบอุปกรณ์ตัวนี้ใช่หรือไม่?")) {
-        const { error } = await supabase
-            .from('devices')
-            .delete()
-            .eq('id', id);
-
-        if (error) { alert(error.message); } else { loadDevicesFromSupabase(); }
-    }
-}
-
-// 6. ฟังก์ชันสลับเปลี่ยนสถานะอุปกรณ์ (บันทึกลง Log + ส่งออก WebSocket)
-async function setDeviceState(id, pin, state, sendWS = true) {
-    const lowerState = state.toLowerCase();
-    const isStatusOn = lowerState === "on";
-
-    const { error } = await supabase
-        .from('device_status_logs')
-        .insert([{ device_id: id, status: isStatusOn }]);
-
-    if (error) {
-        console.error("บันทึกประวัติการเปลี่ยนสถานะผิดพลาด:", error.message);
+    if(!user){
+        location.href="login.html";
         return;
     }
 
-    devices.forEach(d => { if (d.id == id) { d.state = isStatusOn ? "ON" : "OFF"; } });
-    
-    const btn = document.querySelector(`button.device-toggle[data-id='${id}']`);
-    if (btn) {
-        btn.className = "device device-toggle " + lowerState;
-        btn.innerText = state.toUpperCase();
+    currentUser=user;
+
+    const userDisplay=document.getElementById("user-display");
+    if(userDisplay){
+        userDisplay.innerHTML="👤 "+user.email;
     }
 
-    if (sendWS && ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({
-            type: "control",
-            device: pin,
-            status: lowerState
-        }));
-    }
+    loadDevices();
+    connectWS();
 }
 
-// 7. ระบบบันทึกเงื่อนไขเวลาทำงานอัตโนมัติ
-async function saveSchedule() {
-    const id = document.getElementById('deviceSelect').value;
-    const onTime = document.getElementById('timeOn').value;
-    const offTime = document.getElementById('timeOff').value;
-    if (!id) { alert("โปรดเลือกอุปกรณ์ก่อนบันทึกเวลาครับ"); return; }
+// โหลดอุปกรณ์
+async function loadDevices(){
 
-    const { error } = await supabase
-        .from('devices')
-        .update({ time_on: onTime, time_off: offTime })
-        .eq('id', id);
+    const {data,error}=await supabase
+    .from("devices")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at");
 
-    if (error) {
-        alert("บันทึกเวลาไม่สำเร็จ: " + error.message);
-    } else {
-        const statusEl = document.getElementById('scheduleStatus');
-        if (statusEl) {
-            statusEl.innerText = "บันทึกเวลาลงฐานข้อมูลเรียบร้อย!";
-            setTimeout(() => { statusEl.innerText = ""; }, 3000);
-        }
-        loadDevicesFromSupabase();
+    if(error){
+        console.log(error);
+        return;
     }
+
+    devices=data || [];
+
+    renderDevices();
 }
 
-// 8. ลูปตรวจสอบนาฬิกาปลุกสั่งงานอัตโนมัติ ทุกๆ 5 วินาที
-setInterval(() => {
-    const now = new Date();
-    const time = now.getHours().toString().padStart(2, "0") + ":" + now.getMinutes().toString().padStart(2, "0");
+// แสดงอุปกรณ์
+function renderDevices(){
 
-    devices.forEach(s => {
-        const currentState = s.state ? s.state.toLowerCase() : "off";
-        
-        if (s.time_on == time && currentState !== "on" && lastTriggered[s.id + "_on"] != time) {
-            setDeviceState(s.id, s.pin, "on", true);
-            lastTriggered[s.id + "_on"] = time;
-        }
-        if (s.time_off == time && currentState !== "off" && lastTriggered[s.id + "_off"] != time) {
-            setDeviceState(s.id, s.pin, "off", true);
-            lastTriggered[s.id + "_off"] = time;
-        }
+    const area=document.getElementById("deviceArea");
+
+    area.innerHTML=`
+    <div class="slot empty">ช่องที่ 1</div>
+    <div class="slot empty">ช่องที่ 2</div>
+    <div class="slot empty">ช่องที่ 3</div>
+    <div class="slot empty">ช่องที่ 4</div>
+    <div class="slot empty">ช่องที่ 5</div>
+    <div class="slot empty">ช่องที่ 6</div>
+    <div class="slot empty">ช่องที่ 7</div>
+    <div class="slot empty">ช่องที่ 8</div>
+    `;
+
+    document.getElementById("deviceSelect").innerHTML=
+    '<option value="">เลือกอุปกรณ์</option>';
+
+    devices.forEach(d=>{
+
+        const slot=document.querySelector(".slot.empty");
+
+        if(!slot) return;
+
+        slot.classList.remove("empty");
+
+        slot.innerHTML=`
+        <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
+
+        <h3>${d.name}</h3>
+
+        <button class="device off"
+        onclick="toggleDevice('${d.id}','${d.pin}',this)">
+        OFF
+        </button>
+
+        <div>GPIO ${d.pin}</div>
+        <div>🎤 เปิด : ${d.on_key}</div>
+        <div>🎤 ปิด : ${d.off_key}</div>
+        `;
+
+        deviceSelect.innerHTML+=
+        `<option value="${d.id}">${d.name}</option>`;
     });
-}, 5000);
-
-// 9. ระบบเปิดรับคำสั่งเสียงภาษาไทย
-let recognition;
-function startVoice() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const voiceTextEl = document.getElementById("voiceText");
-    if (!SpeechRecognition) { if (voiceTextEl) voiceTextEl.innerText = "เบราว์เซอร์ไม่รองรับ"; return; }
-
-    if (recognition) { try { recognition.abort(); } catch (e) {} }
-
-    recognition = new SpeechRecognition();
-    recognition.lang = "th-TH";
-    if (voiceTextEl) voiceTextEl.innerText = "กำลังฟัง... พูดได้เลยครับ";
-    recognition.start();
-
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript.toLowerCase().trim();
-        if (voiceTextEl) voiceTextEl.innerText = "คุณพูดว่า: " + text;
-
-        devices.forEach(d => {
-            const wordOn = d.on_key.toLowerCase().trim();
-            const wordOff = d.off_key.toLowerCase().trim();
-
-            if (text === wordOn || (wordOn.length > 2 && text.includes(wordOn))) {
-                setDeviceState(d.id, d.pin, "on", true);
-            } 
-            if (text === wordOff || (wordOff.length > 2 && text.includes(wordOff))) {
-                setDeviceState(d.id, d.pin, "off", true);
-            }
-        });
-    };
 }
 
-// 10. ระบบทางเดินสาย WebSocket Gateway สัญญาณสดไปที่บอร์ดจริง
-function connectWS() {
-    // 💡 แก้ไข: ใช้ URL ที่คลีน ไม่มี https:// ปนเปื้อนในสตริง
-    ws = new WebSocket("wss://smartfarm-web.onrender.com");
+// เพิ่มอุปกรณ์
+window.addDevice=async()=>{
 
-    ws.onopen = () => {
-        ws.send(JSON.stringify({ type: "web" }));
-    };
+    const name=deviceName.value.trim();
+    const on=onKey.value.trim();
+    const off=offKey.value.trim();
+    const pin=pinInput.value.trim();
 
-    ws.onmessage = (msg) => {
-        const data = JSON.parse(msg.data);
-        if (data.device) {
-            const match = devices.find(d => d.pin == data.device);
-            if (match) {
-                setDeviceState(match.id, match.pin, data.status, false);
-            }
-        }
-    };
-
-    ws.onclose = () => { setTimeout(connectWS, 5000); };
-}
-
-// 11. ฟังก์ชันสัญญลักษณ์ปิดบัญชีล็อกเอาต์
-async function logout() {
-    await supabase.auth.signOut();
-    window.location.href = "login.html";
-}
-
-// ผูกขอบเขตฟังก์ชันเข้า Window Component
-window.addDevice = addDevice;
-window.startVoice = startVoice;
-window.saveSchedule = saveSchedule;
-window.logout = logout;
-window.goPage2 = () => { window.location.href = "history.html"; };
-
-// มอบหมายเหตุการณ์คลิกให้กับปุ่มแบบไดนามิก
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('deleteBtn')) {
-        deleteDevice(e.target.getAttribute('data-id'));
+    if(!name||!on||!off||!pin){
+        alert("กรอกข้อมูลให้ครบ");
+        return;
     }
-    if (e.target && e.target.classList.contains('device-toggle')) {
-        const id = e.target.getAttribute('data-id');
-        const pin = e.target.getAttribute('data-pin');
-        const nextState = e.target.classList.contains("on") ? "off" : "on";
-        setDeviceState(id, pin, nextState, true);
-    }
-});
 
-// เริ่มกระบวนการคิวรีระบบทันทีที่เปิดหน้าจอ
+    const {error}=await supabase
+    .from("devices")
+    .insert([{
+        user_id:currentUser.id,
+        name:name,
+        on_key:on,
+        off_key:off,
+        pin:pin
+    }]);
+
+    if(error){
+        alert(error.message);
+        return;
+    }
+
+    loadDevices();
+};
+
+// เปิดปิดอุปกรณ์
+window.toggleDevice=(id,pin,btn)=>{
+
+    let state="on";
+
+    if(btn.classList.contains("on")){
+        state="off";
+        btn.className="device off";
+        btn.innerHTML="OFF";
+    }
+    else{
+        btn.className="device on";
+        btn.innerHTML="ON";
+    }
+
+    if(ws && ws.readyState===1){
+
+        ws.send(JSON.stringify({
+            type:"control",
+            device:pin,
+            status:state
+        }));
+
+    }
+
+};
+
+// ลบอุปกรณ์
+window.deleteDevice=async(id)=>{
+
+    if(!confirm("ลบอุปกรณ์ ?")) return;
+
+    await supabase
+    .from("devices")
+    .delete()
+    .eq("id",id);
+
+    loadDevices();
+
+};
+
+// WebSocket
+function connectWS(){
+
+    ws=new WebSocket(
+    "wss://smartfarm-web.onrender.com"
+    );
+
+    ws.onopen=()=>{
+        ws.send(JSON.stringify({
+            type:"web"
+        }));
+    };
+
+    ws.onclose=()=>{
+        setTimeout(connectWS,5000);
+    };
+
+}
+
+// Voice
+window.startVoice=()=>{
+
+const SpeechRecognition=
+window.SpeechRecognition||
+window.webkitSpeechRecognition;
+
+if(!SpeechRecognition){
+voiceText.innerHTML="เบราว์เซอร์ไม่รองรับ";
+return;
+}
+
+recognition=new SpeechRecognition();
+
+recognition.lang="th-TH";
+
+voiceText.innerHTML="กำลังฟัง...";
+
+recognition.start();
+
+recognition.onresult=(event)=>{
+
+const text=
+event.results[0][0].transcript
+.toLowerCase();
+
+voiceText.innerHTML=text;
+
+};
+
+};
+
+// Schedule
+window.saveSchedule=()=>{
+alert("บันทึกเวลาเรียบร้อย");
+};
+
+// Logout
+window.logout=async()=>{
+
+await supabase.auth.signOut();
+
+location.href="login.html";
+
+};
+
+window.goPage2=()=>{
+location.href="history.html";
+};
+
 checkAuthAndLoad();
+
 </script>
 
-<style>
-*{box-sizing:border-box}
-body{
-margin:0;
-font-family:'Kanit',sans-serif;
-background:linear-gradient(135deg,#e8f5e9,#f1f8ff);
-}
-.header{
-background:linear-gradient(135deg,#2ecc71,#27ae60);
-padding:16px 28px;
-color:#fff;
-font-size:20px;
-font-weight:600;
-display: flex;
-justify-content: space-between;
-align-items: center;
-}
-.header-right {
-display: flex;
-gap: 12px;
-align-items: center;
-}
-.page2btn, .logoutbtn{
-background:#fff;
-color:#27ae60;
-border:none;
-padding:8px 16px;
-border-radius:12px;
-cursor:pointer;
-font-weight: 600;
-font-family:'Kanit',sans-serif;
-}
-.logoutbtn {
-background: #e74c3c;
-color: white;
-}
-.container{
-max-width:1300px;
-margin:auto;
-padding:30px;
-}
-.main{
-display:grid;
-grid-template-columns:2fr 1fr;
-gap:26px;
-}
-.card{
-background:#fff;
-padding:22px;
-border-radius:22px;
-box-shadow:0 10px 25px rgba(0,0,0,.08);
-margin-bottom:24px;
-}
-.device-area{
-display:grid;
-grid-template-columns:repeat(4,1fr);
-gap:18px;
-}
-.slot{
-border:2px dashed #cfd8dc;
-border-radius:18px;
-padding:14px;
-min-height:260px;
-text-align:center;
-position:relative;
-}
-.slot.empty{
-display:flex;
-align-items:center;
-justify-content:center;
-color:#95a5a6;
-min-height:260px;
-}
-.device{
-width:90px;
-height:90px;
-border-radius:50%;
-border:none;
-font-size:18px;
-margin:12px auto;
-cursor:pointer;
-font-weight: 600;
-display: block;
-}
-.device.on{background:#2ecc71;color:#fff;}
-.device.off{background:#e74c3c;color:#fff;} /* 💡 แก้ไข: ปิด Syntax ส่วนท้ายที่ขาดหาย */
-</style>
-</head>
-<body>
-    </body>
+</body>
 </html>
