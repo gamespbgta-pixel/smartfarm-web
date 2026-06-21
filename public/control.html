@@ -264,7 +264,7 @@ button.action{
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co";
-const SUPABASE_ANON_KEY = "ใส่ ANON KEY ของคุณ";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -278,7 +278,7 @@ async function checkAuthAndLoad(){
     const {data:{user}} = await supabase.auth.getUser();
 
     if(!user){
-        location.href="login.html";
+        location.href="index.html";
         return;
     }
 
@@ -492,7 +492,7 @@ window.logout=async()=>{
 
 await supabase.auth.signOut();
 
-location.href="login.html";
+location.href="index.html";
 
 };
 
