@@ -272,6 +272,7 @@ let ws;
 let devices = [];
 let currentUser = null;
 let recognition;
+let schedules = [];
 
 // ตรวจสอบการล็อกอิน
 async function checkAuthAndLoad(){
@@ -291,6 +292,7 @@ async function checkAuthAndLoad(){
 
     loadDevices();
     connectWS();
+    
 }
 
 // โหลดอุปกรณ์
