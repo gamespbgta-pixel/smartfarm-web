@@ -101,15 +101,16 @@ SUPABASE_KEY
 
 async function loadHistory(){
 
-const {data,error}=await supabase
+const { data, error } = await supabase
 .from("device_status_logs")
 .select(`
-status,
-changed_at,
-devices(name)
+    device_id,
+    status,
+    changed_at,
+    devices(name)
 `)
-.order("changed_at",{ascending:false});
-
+.order("changed_at", { ascending: false });
+    
 if(error){
 console.log(error);
 return;
