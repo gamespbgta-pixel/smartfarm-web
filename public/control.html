@@ -296,8 +296,8 @@ function startVoice() {
 
 // 10. ระบบทางเดินสาย WebSocket Gateway สัญญาณสดไปที่บอร์ดจริง
 function connectWS() {
-    const renderHost = "smartfarm-web.onrender.com";
-    ws = new WebSocket("wss://" + renderHost);
+    // 💡 แก้ไข: ใช้ URL ที่คลีน ไม่มี https:// ปนเปื้อนในสตริง
+    ws = new WebSocket("wss://smartfarm-web.onrender.com");
 
     ws.onopen = () => {
         ws.send(JSON.stringify({ type: "web" }));
@@ -431,4 +431,9 @@ font-weight: 600;
 display: block;
 }
 .device.on{background:#2ecc71;color:#fff;}
-.device.off{background:#e74c3c;
+.device.off{background:#e74c3c;color:#fff;} /* 💡 แก้ไข: ปิด Syntax ส่วนท้ายที่ขาดหาย */
+</style>
+</head>
+<body>
+    </body>
+</html>
