@@ -296,7 +296,7 @@ function startVoice() {
 
 // 10. ระบบทางเดินสาย WebSocket Gateway สัญญาณสดไปที่บอร์ดจริง
 function connectWS() {
-    const renderHost = "https://smartfarm-web.onrender.com";
+    const renderHost = "smartfarm-web.onrender.com";
     ws = new WebSocket("wss://" + renderHost);
 
     ws.onopen = () => {
