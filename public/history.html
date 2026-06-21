@@ -128,7 +128,7 @@ table{
 
 <h1>📜 ประวัติการทำงาน Smart Farm</h1>
 
-<button class="backBtn" onclick="goControl()">
+<button class="backBtn" id="backBtn">
 🏠 กลับไปหน้าควบคุม
 </button>
 
@@ -172,9 +172,10 @@ const supabase = createClient(
     SUPABASE_KEY
 );
 
-function goControl(){
-    location.href="control.html";
-}
+document.getElementById("backBtn").addEventListener("click", () => {
+    location.href = "/control.html";
+});
+
 
 async function loadHistory(){
 
