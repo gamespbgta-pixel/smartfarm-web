@@ -521,9 +521,39 @@ devices.forEach(d=>{
 
 };
 
-// Schedule
-window.saveSchedule=()=>{
-alert("บันทึกเวลาเรียบร้อย");
+window.saveSchedule = async () => {
+
+    const deviceId = deviceSelect.value;
+    const onTime = timeOn.value;
+    const offTime = timeOff.value;
+
+    if (!deviceId || !onTime || !offTime) {
+        alert("กรอกข้อมูลให้ครบ");
+        return;
+    }
+
+    // ลบเวลาเก่าของอุปกรณ์นี้ก่อน
+    await supabase
+        .from("schedules")
+        .delete()
+        .eq("device_id", deviceId);
+
+    // บันทึกเวลาใหม่
+    const { error } = await supabase
+        .from("schedules")
+        .insert([{
+            device_id: deviceId,
+            time_on: onTime,
+            time_off: offTime
+        }]);
+
+    if (error) {
+        alert(error.message);
+        return;
+    }
+
+    scheduleStatus.innerHTML = "✅ บันทึกเวลาเรียบร้อย";
+
 };
 
 // Logout
