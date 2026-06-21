@@ -485,11 +485,37 @@ recognition.start();
 
 recognition.onresult=(event)=>{
 
-const text=
-event.results[0][0].transcript
-.toLowerCase();
+const text=event.results[0][0].transcript.toLowerCase();
 
-voiceText.innerHTML=text;
+voiceText.innerHTML="ได้ยิน : "+text;
+
+devices.forEach(d=>{
+
+    // คำสั่งเปิด
+    if(text.includes(d.on_key.toLowerCase())){
+
+        const btn=[...document.querySelectorAll(".device")]
+        .find(b=>b.parentElement.innerHTML.includes(d.name));
+
+        if(btn && !btn.classList.contains("on")){
+            toggleDevice(d.id,d.pin,btn);
+        }
+
+    }
+
+    // คำสั่งปิด
+    if(text.includes(d.off_key.toLowerCase())){
+
+        const btn=[...document.querySelectorAll(".device")]
+        .find(b=>b.parentElement.innerHTML.includes(d.name));
+
+        if(btn && btn.classList.contains("on")){
+            toggleDevice(d.id,d.pin,btn);
+        }
+
+    }
+
+});
 
 };
 
