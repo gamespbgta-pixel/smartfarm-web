@@ -390,33 +390,46 @@ window.addDevice=async()=>{
     loadDevices();
 };
 
-// เปิดปิดอุปกรณ์
-window.toggleDevice=(id,pin,btn)=>{
+window.toggleDevice = async (id, pin, btn) => {
 
-    let state="on";
+    let state = "on";
 
-    if(btn.classList.contains("on")){
-        state="off";
-        btn.className="device off";
-        btn.innerHTML="OFF";
+    if (btn.classList.contains("on")) {
+        state = "off";
+        btn.className = "device off";
+        btn.innerHTML = "OFF";
     }
-    else{
-        btn.className="device on";
-        btn.innerHTML="ON";
+    else {
+        btn.className = "device on";
+        btn.innerHTML = "ON";
     }
 
-    if(ws && ws.readyState===1){
+    // ส่งคำสั่งผ่าน WebSocket
+    if (ws && ws.readyState === 1) {
 
         ws.send(JSON.stringify({
-            type:"control",
-            device:pin,
-            status:state
+            type: "control",
+            device: pin,
+            status: state
         }));
 
     }
 
-};
+    // บันทึกประวัติลง Supabase
+    const { error } = await supabase
+        .from("device_status_logs")
+        .insert([
+            {
+                device_id: id,
+                status: state === "on"
+            }
+        ]);
 
+    if (error) {
+        console.log("บันทึกประวัติไม่สำเร็จ", error);
+    }
+
+};
 // ลบอุปกรณ์
 window.deleteDevice=async(id)=>{
 
