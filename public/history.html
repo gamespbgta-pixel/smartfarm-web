@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
-
 *{
     box-sizing:border-box;
 }
@@ -36,9 +35,9 @@ body{
     display:flex;
     justify-content:space-between;
     align-items:center;
-    margin-bottom:25px;
     flex-wrap:wrap;
     gap:15px;
+    margin-bottom:20px;
 }
 
 h1{
@@ -55,17 +54,29 @@ h1{
     font-family:'Kanit',sans-serif;
     font-size:16px;
     cursor:pointer;
-    transition:.3s;
 }
 
 .backBtn:hover{
     background:#219150;
 }
 
+.searchBox{
+    margin-bottom:20px;
+}
+
+.searchBox input{
+    width:100%;
+    padding:14px;
+    border:2px solid #27ae60;
+    border-radius:12px;
+    font-family:'Kanit',sans-serif;
+    font-size:16px;
+    outline:none;
+}
+
 table{
     width:100%;
     border-collapse:collapse;
-    overflow:hidden;
 }
 
 th{
@@ -81,7 +92,7 @@ td{
 }
 
 tr:hover{
-    background:#f6fff8;
+    background:#f5fff7;
 }
 
 .on{
@@ -95,8 +106,8 @@ tr:hover{
 }
 
 .empty{
-    padding:30px;
     color:#999;
+    padding:30px;
     font-size:18px;
 }
 
@@ -115,7 +126,6 @@ table{
 }
 
 }
-
 </style>
 </head>
 <body>
@@ -125,13 +135,18 @@ table{
 <div class="card">
 
 <div class="top-bar">
-
 <h1>📜 ประวัติการทำงาน Smart Farm</h1>
 
 <button class="backBtn" id="backBtn">
 🏠 กลับไปหน้าควบคุม
 </button>
+</div>
 
+<div class="searchBox">
+<input
+type="text"
+id="searchInput"
+placeholder="🔍 ค้นหาชื่ออุปกรณ์ หรือ เปิด/ปิด">
 </div>
 
 <table>
@@ -162,79 +177,120 @@ table{
 
 <script type="module">
 
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
+const SUPABASE_URL="https://zweosffxlaghnrvimdwx.supabase.co";
+const SUPABASE_KEY="ใส่_ANON_KEY_ของคุณ";
 
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
+const supabase=createClient(
+SUPABASE_URL,
+SUPABASE_KEY
 );
 
-document.getElementById("backBtn").addEventListener("click", () => {
-    location.href = "/control.html";
+let historyData=[];
+
+// ปุ่มกลับ
+document.getElementById("backBtn")
+.addEventListener("click",()=>{
+
+location.href="/control.html";
+
 });
 
-
+// โหลดข้อมูล
 async function loadHistory(){
 
-    const {data,error} = await supabase
-    .from("device_status_logs")
-    .select(`
-        device_id,
-        status,
-        changed_at,
-        devices(name)
-    `)
-    .order("changed_at",{ascending:false});
+const {data,error}=await supabase
+.from("device_status_logs")
+.select(`
+device_id,
+status,
+changed_at,
+devices(name)
+`)
+.order("changed_at",{ascending:false});
 
-    if(error){
-        console.log(error);
-        alert(error.message);
-        return;
-    }
+if(error){
 
-    const table=document.getElementById("historyTable");
-
-    table.innerHTML="";
-
-    if(data.length===0){
-
-        table.innerHTML=`
-        <tr>
-            <td colspan="3" class="empty">
-            ไม่มีข้อมูลประวัติ
-            </td>
-        </tr>
-        `;
-
-        return;
-    }
-
-    data.forEach(item=>{
-
-        table.innerHTML+=`
-        <tr>
-
-        <td>
-        ${new Date(item.changed_at).toLocaleString('th-TH')}
-        </td>
-
-        <td>
-        ${item.devices?.name || "-"}
-        </td>
-
-        <td class="${item.status ? 'on':'off'}">
-        ${item.status ? '🟢 เปิด':'🔴 ปิด'}
-        </td>
-
-        </tr>
-        `;
-
-    });
+console.log(error);
+alert(error.message);
+return;
 
 }
+
+historyData=data||[];
+
+renderTable(historyData);
+
+}
+
+// แสดงตาราง
+function renderTable(data){
+
+const table=document.getElementById("historyTable");
+
+table.innerHTML="";
+
+if(data.length===0){
+
+table.innerHTML=`
+<tr>
+<td colspan="3" class="empty">
+ไม่มีข้อมูลประวัติ
+</td>
+</tr>
+`;
+
+return;
+
+}
+
+data.forEach(item=>{
+
+table.innerHTML+=`
+<tr>
+
+<td>
+${new Date(item.changed_at).toLocaleString("th-TH")}
+</td>
+
+<td>
+${item.devices?.name || "-"}
+</td>
+
+<td class="${item.status?'on':'off'}">
+${item.status?'🟢 เปิด':'🔴 ปิด'}
+</td>
+
+</tr>
+`;
+
+});
+
+}
+
+// ค้นหา
+document.getElementById("searchInput")
+.addEventListener("input",(e)=>{
+
+const keyword=e.target.value.toLowerCase();
+
+const filtered=historyData.filter(item=>{
+
+const name=(item.devices?.name || "").toLowerCase();
+
+const status=item.status ? "เปิด" : "ปิด";
+
+return(
+name.includes(keyword) ||
+status.includes(keyword)
+);
+
+});
+
+renderTable(filtered);
+
+});
 
 loadHistory();
 
