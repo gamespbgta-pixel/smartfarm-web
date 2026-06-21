@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ประวัติการทำงาน Smart Farm</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body{
+    margin:0;
+    background:#f4f7fa;
+    font-family:'Kanit',sans-serif;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+    padding:20px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:20px;
+    box-shadow:0 5px 15px rgba(0,0,0,.1);
+}
+
+h1{
+    color:#27ae60;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th{
+    background:#27ae60;
+    color:white;
+    padding:12px;
+}
+
+td{
+    padding:12px;
+    border-bottom:1px solid #ddd;
+    text-align:center;
+}
+
+.on{
+    color:#2ecc71;
+    font-weight:bold;
+}
+
+.off{
+    color:#e74c3c;
+    font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="card">
+
+<h1>📜 ประวัติการทำงาน</h1>
+
+<table>
+
+<thead>
+<tr>
+<th>เวลา</th>
+<th>อุปกรณ์</th>
+<th>สถานะ</th>
+</tr>
+</thead>
+
+<tbody id="historyTable">
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<script type="module">
+
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+const SUPABASE_URL="YOUR_SUPABASE_URL";
+const SUPABASE_KEY="YOUR_ANON_KEY";
+
+const supabase=createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+async function loadHistory(){
+
+const {data,error}=await supabase
+.from("device_status_logs")
+.select(`
+status,
+changed_at,
+devices(name)
+`)
+.order("changed_at",{ascending:false});
+
+if(error){
+console.log(error);
+return;
+}
+
+const table=document.getElementById("historyTable");
+
+table.innerHTML="";
+
+data.forEach(item=>{
+
+table.innerHTML+=`
+<tr>
+<td>${new Date(item.changed_at).toLocaleString('th-TH')}</td>
+
+<td>${item.devices?.name || "-"}</td>
+
+<td class="${item.status?'on':'off'}">
+${item.status?'🟢 เปิด':'🔴 ปิด'}
+</td>
+
+</tr>
+`;
+
+});
+
+}
+
+loadHistory();
+
+</script>
+
+</body>
+</html>
