@@ -133,7 +133,7 @@ async function checkAuthAndLoad() {
   connectWS();
 }
 
-// โหลดอุปกรณ์
+// โหลดอุปกรณ์ + ดึงสถานะล่าสุดมาอัปเดตหน้าจอ
 async function loadDevices() {
   const { data, error } = await supabase
     .from("devices")
@@ -142,7 +142,33 @@ async function loadDevices() {
     .order("created_at");
   if (error) { console.error(error); return; }
   devices = data || [];
+  
+  // แสดงโครงสร้างปุ่มก่อน
   renderDevices();
+
+  // ดึงประวัติสถานะแถวล่าสุดของแต่ละอุปกรณ์มาอัปเดตสถานะปุ่มจริง
+  for (const d of devices) {
+    const { data: logData } = await supabase
+      .from("device_status_logs")
+      .select("status")
+      .eq("device_id", d.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (logData && logData.length > 0) {
+      const lastStatus = logData[0].status; // true คือเปิด, false คือปิด
+      const btn = document.getElementById("btn-" + d.id);
+      if (btn) {
+        if (lastStatus === true) {
+          btn.className = "device on";
+          btn.innerHTML = "ON";
+        } else {
+          btn.className = "device off";
+          btn.innerHTML = "OFF";
+        }
+      }
+    }
+  }
 }
 
 // โหลดตารางเวลาทั้งหมด
@@ -158,7 +184,7 @@ async function loadSchedules() {
   renderScheduleList();
 }
 
-// แสดงอุปกรณ์
+// แสดงโครงสร้างอุปกรณ์
 function renderDevices() {
   const area = document.getElementById("deviceArea");
   area.innerHTML = `
@@ -194,6 +220,7 @@ function renderDevices() {
 // แสดงรายการตั้งเวลา
 function renderScheduleList() {
   const list = document.getElementById("scheduleList");
+  if (!list) return;
   if (!schedules.length) { list.innerHTML = ""; return; }
   list.innerHTML = '<div style="margin-top:12px;font-size:13px;color:#555;font-weight:600">รายการเวลาที่ตั้งไว้</div>';
   schedules.forEach(s => {
@@ -254,9 +281,9 @@ window.toggleDevice = async (id, pin) => {
   await setDeviceState(id, pin, targetState);
 };
 
-// ตรวจสอบเวลาอัตโนมัติ (แก้ไขการตัดวินาทีเรียบร้อยแล้ว)
+// ตรวจสอบเวลาอัตโนมัติ
 async function checkSchedules() {
-  const currentTime = getCurrentTime(); // ได้ค่า HH:mm เช่น "23:19"
+  const currentTime = getCurrentTime();
 
   if (devices.length) {
     const deviceIds = devices.map(d => d.id);
@@ -271,7 +298,6 @@ async function checkSchedules() {
     const device = s.devices;
     if (!device) continue;
 
-    // ตัดส่วนวินาทีออก : เปลี่ยนจาก "23:19:00" -> ให้เหลือแค่ "23:19" 
     const timeOnClean = s.time_on ? s.time_on.substring(0, 5) : "";
     const timeOffClean = s.time_off ? s.time_off.substring(0, 5) : "";
 
