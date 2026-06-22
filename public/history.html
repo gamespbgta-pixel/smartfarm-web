@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ประวัติการทำงาน Smart Farm</title>
+<title>ประวัติการทำงาน Smart Farm (รายวัน)</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 
@@ -54,246 +54,294 @@ h1{
     font-family:'Kanit',sans-serif;
     font-size:16px;
     cursor:pointer;
+    transition: background 0.2s;
 }
 
 .backBtn:hover{
     background:#219150;
 }
 
-.searchBox{
-    margin-bottom:20px;
+/* ส่วนเลือกวันที่สไตล์ปฏิทิน */
+.calendar-section {
+    background: #f9fbf9;
+    border: 2px solid #27ae60;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
-.searchBox input{
-    width:100%;
-    padding:14px;
-    border:2px solid #27ae60;
-    border-radius:12px;
-    font-family:'Kanit',sans-serif;
-    font-size:16px;
-    outline:none;
+.calendar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-table{
-    width:100%;
-    border-collapse:collapse;
+.calendar-wrapper label {
+    font-weight: 600;
+    color: #2c3e50;
 }
 
-th{
-    background:linear-gradient(135deg,#2ecc71,#27ae60);
-    color:white;
-    padding:15px;
+.calendar-section input[type="date"] {
+    padding: 10px 15px;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    font-family: 'Kanit', sans-serif;
+    font-size: 16px;
+    outline: none;
+    color: #333;
+    background: white;
 }
 
-td{
-    padding:15px;
-    text-align:center;
-    border-bottom:1px solid #eee;
+.calendar-section input[type="date"]:focus {
+    border-color: #27ae60;
 }
 
-tr:hover{
-    background:#f5fff7;
+.date-summary {
+    font-size: 16px;
+    font-weight: 600;
+    color: #27ae60;
+    background: #e8f5e9;
+    padding: 8px 16px;
+    border-radius: 20px;
 }
 
-.on{
-    color:#2ecc71;
-    font-weight:bold;
+.searchBox {
+    margin-bottom: 20px;
 }
 
-.off{
-    color:#e74c3c;
-    font-weight:bold;
+.searchBox input {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    font-family: 'Kanit', sans-serif;
+    font-size: 16px;
+    outline: none;
 }
 
-.empty{
-    color:#999;
-    padding:30px;
-    font-size:18px;
+.searchBox input:focus {
+    border-color: #27ae60;
+    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: linear-gradient(135deg,#2ecc71,#27ae60);
+    color: white;
+    padding: 15px;
+}
+
+td {
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+
+tr:hover {
+    background: #f5fff7;
+}
+
+.on {
+    color: #2ecc71;
+    font-weight: bold;
+}
+
+.off {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.empty {
+    color: #999;
+    padding: 40px;
+    font-size: 18px;
 }
 
 @media(max-width:768px){
-
-.top-bar{
-    flex-direction:column;
-}
-
-.backBtn{
-    width:100%;
-}
-
-table{
-    font-size:14px;
-}
-
+    .top-bar, .calendar-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .backBtn {
+        width: 100%;
+        text-align: center;
+    }
+    table {
+        font-size: 14px;
+    }
 }
 </style>
 </head>
 <body>
 
 <div class="container">
-
 <div class="card">
 
-<div class="top-bar">
-<h1>📜 ประวัติการทำงาน Smart Farm</h1>
+    <div class="top-bar">
+        <h1>📜 ประวัติการทำงาน Smart Farm</h1>
+        <button class="backBtn" id="backBtn">🏠 กลับไปหน้าควบคุม</button>
+    </div>
 
-<button class="backBtn" id="backBtn">
-🏠 กลับไปหน้าควบคุม
-</button>
-</div>
+    <div class="calendar-section">
+        <div class="calendar-wrapper">
+            <label for="datePicker">📅 เลือกวันที่ต้องการดู:</label>
+            <input type="date" id="datePicker">
+        </div>
+        <div class="date-summary" id="dateSummary">พบข้อมูลทั้งหมด 0 รายการ</div>
+    </div>
 
-<div class="searchBox">
-<input
-type="text"
-id="searchInput"
-placeholder="🔍 ค้นหาชื่ออุปกรณ์ หรือ เปิด/ปิด">
-</div>
+    <div class="searchBox">
+        <input type="text" id="searchInput" placeholder="🔍 ค้นหาซ้ำด้วยชื่ออุปกรณ์ภายในวันนั้น...">
+    </div>
 
-<table>
-
-<thead>
-<tr>
-<th>เวลา</th>
-<th>อุปกรณ์</th>
-<th>สถานะ</th>
-</tr>
-</thead>
-
-<tbody id="historyTable">
-
-<tr>
-<td colspan="3" class="empty">
-ไม่มีข้อมูลประวัติ
-</td>
-</tr>
-
-</tbody>
-
-</table>
+    <table>
+        <thead>
+            <tr>
+                <th>เวลา</th>
+                <th>อุปกรณ์</th>
+                <th>สถานะ</th>
+            </tr>
+        </thead>
+        <tbody id="historyTable">
+            <tr>
+                <td colspan="3" class="empty">กำลังโหลดข้อมูล...</td>
+            </tr>
+        </tbody>
+    </table>
 
 </div>
-
 </div>
 
 <script type="module">
-
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL="https://zweosffxlaghnrvimdwx.supabase.co";
-const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
+const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
 
-const supabase=createClient(
-SUPABASE_URL,
-SUPABASE_KEY
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let historyData=[];
+let historyData = [];
 
-// ปุ่มกลับ
-document.getElementById("backBtn")
-.addEventListener("click",()=>{
+// ตั้งค่าวันที่เริ่มต้นในปฏิทินให้เป็น "วันนี้" ตามเวลาท้องถิ่น
+const datePicker = document.getElementById("datePicker");
+const today = new Date();
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const dd = String(today.getDate()).padStart(2, '0');
+datePicker.value = `${yyyy}-${mm}-${dd}`;
 
-location.href="/control.html";
-
+// ปุ่มกลับหน้าควบคุม
+document.getElementById("backBtn").addEventListener("click", () => {
+    location.href = "control.html"; // แก้จาก /control.html เผื่อโฟลเดอร์เปลี่ยน
 });
 
-// โหลดข้อมูล
-async function loadHistory(){
+// โหลดข้อมูลทั้งหมดจากฐานข้อมูลมารอไว้
+async function loadHistory() {
+    // หมายเหตุ: โค้ดเดิมใช้ changed_at แต่ระบบควบคุมของคุณบันทึกเป็น created_at ในตารางประวัติ 
+    // จึงปรับให้รองรับโครงสร้างที่ถูกต้อง
+    const { data, error } = await supabase
+        .from("device_status_logs")
+        .select(`
+            device_id,
+            status,
+            created_at,
+            devices(name)
+        `)
+        .order("created_at", { ascending: false });
 
-const {data,error}=await supabase
-.from("device_status_logs")
-.select(`
-device_id,
-status,
-changed_at,
-devices(name)
-`)
-.order("changed_at",{ascending:false});
+    if (error) {
+        console.error(error);
+        alert("เกิดข้อผิดพลาดในการดึงข้อมูล: " + error.message);
+        return;
+    }
 
-if(error){
-
-console.log(error);
-alert(error.message);
-return;
-
+    historyData = data || [];
+    filterAndRender(); // ทำการกรองตามวันที่ตั้งต้นทันที
 }
 
-historyData=data||[];
+// ฟังก์ชันหลักในการกรองข้อมูลตาม "ปฏิทิน" และ "คำค้นหา" พร้อมกัน
+function filterAndRender() {
+    const selectedDate = datePicker.value; // ค่าที่ได้จะเป็นฟอร์แมต "YYYY-MM-DD"
+    const keyword = document.getElementById("searchInput").value.toLowerCase();
 
-renderTable(historyData);
+    if (!selectedDate) {
+        renderTable([]);
+        updateSummary(0);
+        return;
+    }
 
+    const filtered = historyData.filter(item => {
+        // แปลงเวลาจากฐานข้อมูล (UTC) ให้เป็นวันที่ของท้องถิ่นไทย (YYYY-MM-DD)
+        const logDate = new Date(item.created_at);
+        const itemYear = logDate.getFullYear();
+        const itemMonth = String(logDate.getMonth() + 1).padStart(2, '0');
+        const itemDay = String(logDate.getDate()).padStart(2, '0');
+        const itemDateString = `${itemYear}-${itemMonth}-${itemDay}`;
+
+        // เช็กว่าตรงกับวันที่เลือกในปฏิทินหรือไม่
+        const matchesDate = (itemDateString === selectedDate);
+
+        // เช็กคำค้นหาเพิ่มเติม (ชื่ออุปกรณ์ หรือสถานะ เปิด/ปิด)
+        const name = (item.devices?.name || "").toLowerCase();
+        const statusText = item.status ? "เปิด" : "ปิด";
+        const matchesKeyword = name.includes(keyword) || statusText.includes(keyword);
+
+        return matchesDate && matchesKeyword;
+    });
+
+    renderTable(filtered);
+    updateSummary(filtered.length);
 }
 
-// แสดงตาราง
-function renderTable(data){
+// แสดงผลแถวข้อมูลในตาราง HTML
+function renderTable(data) {
+    const table = document.getElementById("historyTable");
+    table.innerHTML = "";
 
-const table=document.getElementById("historyTable");
+    if (data.length === 0) {
+        table.innerHTML = `
+            <tr>
+                <td colspan="3" class="empty">📅 ไม่มีข้อมูลประวัติการทำงานในวันที่เลือก</td>
+            </tr>
+        `;
+        return;
+    }
 
-table.innerHTML="";
-
-if(data.length===0){
-
-table.innerHTML=`
-<tr>
-<td colspan="3" class="empty">
-ไม่มีข้อมูลประวัติ
-</td>
-</tr>
-`;
-
-return;
-
+    data.forEach(item => {
+        table.innerHTML += `
+            <tr>
+                <td>${new Date(item.created_at).toLocaleString("th-TH")}</td>
+                <td>${item.devices?.name || "-"}</td>
+                <td class="${item.status ? 'on' : 'off'}">
+                    ${item.status ? '🟢 เปิด' : '🔴 ปิด'}
+                </td>
+            </tr>
+        `;
+    });
 }
 
-data.forEach(item=>{
-
-table.innerHTML+=`
-<tr>
-
-<td>
-${new Date(item.changed_at).toLocaleString("th-TH")}
-</td>
-
-<td>
-${item.devices?.name || "-"}
-</td>
-
-<td class="${item.status?'on':'off'}">
-${item.status?'🟢 เปิด':'🔴 ปิด'}
-</td>
-
-</tr>
-`;
-
-});
-
+// อัปเดตข้อความสรุปจำนวนรายการ
+function updateSummary(count) {
+    document.getElementById("dateSummary").textContent = `พบข้อมูลทั้งหมด ${count} รายการ`;
 }
 
-// ค้นหา
-document.getElementById("searchInput")
-.addEventListener("input",(e)=>{
+// ตรวจจับการเปลี่ยนวันที่ในปฏิทิน -> ให้กรองข้อมูลใหม่ทันที
+datePicker.addEventListener("change", filterAndRender);
 
-const keyword=e.target.value.toLowerCase();
+// ตรวจจับการพิมพ์ค้นหาเพิ่มเติม
+document.getElementById("searchInput").addEventListener("input", filterAndRender);
 
-const filtered=historyData.filter(item=>{
-
-const name=(item.devices?.name || "").toLowerCase();
-
-const status=item.status ? "เปิด" : "ปิด";
-
-return(
-name.includes(keyword) ||
-status.includes(keyword)
-);
-
-});
-
-renderTable(filtered);
-
-});
-
+// เริ่มทำงานเมื่อเปิดหน้าเว็บ
 loadHistory();
-
 </script>
 
 </body>
