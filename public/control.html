@@ -24,7 +24,7 @@ body{ margin:0; font-family:'Kanit',sans-serif; background:linear-gradient(135de
 .device.on{ background:#2ecc71; color:white; }
 .device.off{ background:#e74c3c; color:white; }
 .deleteBtn{ position:absolute; top:10px; right:10px; border:none; background:red; color:white; border-radius:50%; width:30px; height:30px; cursor:pointer; }
-input,select{ width:100%; padding:12px; margin-top:10px; border:1px solid #ddd; border-radius:10px; font-family:'Kanit',sans-serif; font-size:16px; } /* ป้องกัน iOS ซูมหน้าจอตอนกดพิมพ์ */
+input,select{ width:100%; padding:12px; margin-top:10px; border:1px solid #ddd; border-radius:10px; font-family:'Kanit',sans-serif; font-size:16px; }
 button.action{ width:100%; background:#27ae60; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; margin-top:12px; font-family:'Kanit',sans-serif; font-size:15px; }
 .voiceBtn{ background:#3498db !important; }
 .voiceBtn.listening{ background:#e67e22 !important; animation: pulse 1.5s infinite; }
@@ -237,14 +237,12 @@ function getCurrentTime() {
          now.getMinutes().toString().padStart(2, '0');
 }
 
+// ฟังก์ชันหลัก: เปลี่ยนสีปุ่มบนจอทันที + บันทึก Supabase + ส่ง Socket พร้อมกัน
 async function setDeviceState(id, pin, targetState) {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
 
-  const isOn = btn.classList.contains("on");
-  if (targetState === "on" && isOn) return;
-  if (targetState === "off" && !isOn) return;
-
+  // เปลี่ยนสถานะและ UI ทันทีไม่ต้องรอเซิฟเวอร์เพื่อความลื่นไหลบนมือถือ
   if (targetState === "on") {
     btn.className = "device on";
     btn.innerHTML = "ON";
@@ -323,12 +321,11 @@ function startScheduler() {
   }, 1000);
 }
 
-// ระบบเสียงรองรับโทรศัพท์ทุกรุ่น (Cross-Platform Mobile Fix)
+// แก้ไขฟังก์ชันคำสั่งเสียงให้เชื่อมโยงกับปุ่มและเคลียร์ช่องว่างเรียบร้อย
 window.startVoice = async () => {
   const voiceBtn = document.getElementById("voiceButton");
   const voiceText = document.getElementById("voiceText");
   
-  // ตรวจสอบคลาสสเปคมีเดีย (รองรับทั้ง Android, iOS Chrome, iOS Safari)
   const SpeechRecognition = window.SpeechRecognition || 
                             window.webkitSpeechRecognition || 
                             window.mozSpeechRecognition || 
@@ -339,16 +336,14 @@ window.startVoice = async () => {
     return;
   }
 
-  // เคลียร์ Instance เก่าทิ้งถ้าเคยทำงานค้างอยู่บน Mobile Background
   if (recognition) {
     try { recognition.stop(); } catch(e){}
   }
 
-  // ขอสิทธิ์ไมโครโฟนล่วงหน้าโดยตรงเพื่อเสถียรภาพบน iOS
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
-    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟนในโทรศัพท์";
+    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟน";
     return;
   }
 
@@ -356,8 +351,6 @@ window.startVoice = async () => {
   recognition.lang = "th-TH";
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
-  
-  // บังคับหยุดเมื่อพูดจบคำทันที ลดทรัพยากรบนสมาร์ทโฟน
   recognition.continuous = false; 
 
   recognition.onstart = () => {
@@ -365,35 +358,37 @@ window.startVoice = async () => {
       voiceBtn.classList.add("listening");
       voiceBtn.innerHTML = "🔊 กำลังฟังคำสั่งเสียง...";
     }
-    if (voiceText) voiceText.innerHTML = "พูดคำสั่งเปิด/ปิดอุปกรณ์ของคุณได้เลย";
+    if (voiceText) voiceText.innerHTML = "พูดคำสั่งเปิด/ปิดอุปกรณ์ได้เลย...";
   };
 
   recognition.onresult = async (event) => {
+    // ลบช่องว่างหัวท้ายออกเพื่อป้องกันการเปรียบเทียบค่าผิดพลาด
     const text = event.results[0][0].transcript.trim().toLowerCase();
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
 
     let matched = false;
     for (const d of devices) {
-      if (text.includes(d.on_key.toLowerCase())) {
+      // ทำความสะอาดคีย์เวิร์ดเปิด/ปิดจากดาต้าเบสป้องกันช่องว่างหลุดมาด้วย
+      const cleanOnKey = d.on_key.trim().toLowerCase();
+      const cleanOffKey = d.off_key.trim().toLowerCase();
+
+      if (text.includes(cleanOnKey)) {
         await setDeviceState(d.id, d.pin, "on");
         matched = true;
       }
-      if (text.includes(d.off_key.toLowerCase())) {
+      if (text.includes(cleanOffKey)) {
         await setDeviceState(d.id, d.pin, "off");
         matched = true;
       }
     }
+    
     if(!matched && voiceText) {
-      voiceText.innerHTML = `ได้ยิน: "${text}" (คำสั่งไม่ตรงกับอุปกรณ์ใดๆ)`;
+      voiceText.innerHTML = `ได้ยิน: "${text}" (คำสั่งไม่ตรงกับชื่อที่ตั้งไว้)`;
     }
   };
 
   recognition.onerror = (event) => {
-    console.error(event.error);
-    if (voiceText) {
-      if(event.error === 'not-allowed') voiceText.innerHTML = "❌ ไมโครโฟนถูกบล็อก";
-      else voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณากดลองอีกครั้ง";
-    }
+    if (voiceText) voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณากดลองอีกครั้ง";
   };
 
   recognition.onend = () => {
