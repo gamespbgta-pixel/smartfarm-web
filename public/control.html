@@ -34,6 +34,12 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 #scheduleStatus{ margin-top:8px; font-size:13px; }
 #voiceText{ margin-top:8px; font-size:13px; color:#555; font-weight:600; }
 #schedulerStatus{ position:fixed; bottom:15px; right:15px; background:#27ae60; color:white; padding:6px 12px; border-radius:20px; font-size:12px; font-family:'Kanit',sans-serif; opacity:0; transition:opacity 0.5s; pointer-events:none; z-index:9999; }
+
+/* โซนปรับแต่งขนาดของช่องตั้งเวลาสำหรับแผงควบคุม */
+.time-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+.time-box { display: flex; flex-direction: column; }
+.time-box label { font-size: 14px; color: #666; margin-bottom: -4px; }
+
 @media(max-width:900px){
   .main{ grid-template-columns:1fr; }
   .device-area{ grid-template-columns:repeat(2,1fr); }
@@ -89,10 +95,18 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
     <select id="deviceSelect">
       <option value="">เลือกอุปกรณ์</option>
     </select>
-    <label>เวลาเปิด</label>
-    <input type="time" id="timeOn">
-    <label>เวลาปิด</label>
-    <input type="time" id="timeOff">
+    
+    <div class="time-container">
+      <div class="time-box">
+        <label>เวลาเปิด</label>
+        <input type="time" id="timeOn">
+      </div>
+      <div class="time-box">
+        <label>เวลาปิด</label>
+        <input type="time" id="timeOff">
+      </div>
+    </div>
+    
     <button class="action" onclick="saveSchedule()">บันทึกเวลา</button>
     <div id="scheduleStatus"></div>
     <div id="scheduleList"></div>
@@ -324,7 +338,6 @@ function startScheduler() {
   }, 1000);
 }
 
-// === ฟังก์ชันควบด้วยเสียงที่ปรับปรุงแก้ไขเพื่อ iPhone (iOS) ===
 window.startVoice = async () => {
   const voiceBtn = document.getElementById("voiceButton");
   const voiceText = document.getElementById("voiceText");
