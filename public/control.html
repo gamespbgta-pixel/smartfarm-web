@@ -155,12 +155,12 @@ async function loadDevices() {
   // ดึงค่าสถานะล่าสุดรายตัวแบบรันพร้อมกัน (Parallel)
   const latestStatusMap = {};
   const logPromises = devices.map(async (d) => {
-    const { data } = await supabase
-      .from("device_status_logs")
-      .select("status")
-      .eq("device_id", d.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
+  const { data } = await supabase
+  .from("device_status_logs")
+  .select("status")
+  .eq("device_id", d.id)
+  .order("changed_at", { ascending: false })
+  .limit(1);
     
     if (data && data.length > 0) {
       latestStatusMap[d.id] = data[0].status;
