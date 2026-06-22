@@ -246,13 +246,13 @@ document.getElementById("backBtn").addEventListener("click", () => {
 
 // โหลดข้อมูลทั้งหมดมารอไว้
 async function loadHistory() {
-    // แก้ไขเพื่อหลีกเลี่ยง Error 400: ดึงข้อมูลแบบปกติแล้วจัดเรียงผ่าน JavaScript แทนเพื่อความเสถียร
+    // 🛠️ แก้ไขเรียบร้อย: เปลี่ยนคีย์เรียงลำดับเป็น 'changed_at' ตามโครงสร้างจริงใน Supabase ของคุณ
     const { data, error } = await supabase
         .from("device_status_logs")
         .select(`
             device_id,
             status,
-            created_at,
+            changed_at,
             devices(name)
         `);
 
@@ -262,16 +262,16 @@ async function loadHistory() {
         return;
     }
 
-    // เรียงลำดับจากล่าสุดไปหาเก่าสุดด้วย JavaScript ฝั่ง Client
+    // จัดเรียงข้อมูลจากเวลาล่าสุดไปอดีตด้วย JavaScript 
     historyData = data || [];
-    historyData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    historyData.sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at));
 
-    filterAndRender(); // ทำการกรองข้อมูลตามวันปัจจุบันทันที
+    filterAndRender(); // กรองตามวันปัจจุบันทันที
 }
 
-// ฟังก์ชันกรองข้อมูลผ่านปฏิทิน
+// ฟังก์ชันกรองข้อมูลผ่านปฏิทินและคำค้นหา
 function filterAndRender() {
-    const selectedDate = datePicker.value; // ฟอร์แมต "YYYY-MM-DD"
+    const selectedDate = datePicker.value; // ค่าจากปฏิทินรูปแบบ "YYYY-MM-DD"
     const keyword = document.getElementById("searchInput").value.toLowerCase();
 
     if (!selectedDate) {
@@ -281,19 +281,19 @@ function filterAndRender() {
     }
 
     const filtered = historyData.filter(item => {
-        if (!item.created_at) return false;
+        if (!item.changed_at) return false;
         
-        // แปลงเวลาจากฐานข้อมูลให้เป็นค่าวันที่ระบบท้องถิ่น (YYYY-MM-DD)
-        const logDate = new Date(item.created_at);
+        // แปลงเวลาฐานข้อมูลเป็นเขตเวลาท้องถิ่น (YYYY-MM-DD)
+        const logDate = new Date(item.changed_at);
         const itemYear = logDate.getFullYear();
         const itemMonth = String(logDate.getMonth() + 1).padStart(2, '0');
         const itemDay = String(logDate.getDate()).padStart(2, '0');
         const itemDateString = `${itemYear}-${itemMonth}-${itemDay}`;
 
-        // ตรวจสอบเงื่อนไขวันที่เลือกในปฏิทิน
+        // เช็กเงื่อนไขปฏิทิน
         const matchesDate = (itemDateString === selectedDate);
 
-        // ตรวจสอบคำค้นหาเพิ่มเติม
+        // เช็กเงื่อนไขคำค้นหา
         const name = (item.devices?.name || "").toLowerCase();
         const statusText = item.status ? "เปิด" : "ปิด";
         const matchesKeyword = name.includes(keyword) || statusText.includes(keyword);
@@ -305,7 +305,7 @@ function filterAndRender() {
     updateSummary(filtered.length);
 }
 
-// วาดข้อมูลลงบนตาราง HTML
+// นำข้อมูลไปแสดงบนตาราง
 function renderTable(data) {
     const table = document.getElementById("historyTable");
     table.innerHTML = "";
@@ -322,7 +322,7 @@ function renderTable(data) {
     data.forEach(item => {
         table.innerHTML += `
             <tr>
-                <td>${new Date(item.created_at).toLocaleString("th-TH")}</td>
+                <td>${new Date(item.changed_at).toLocaleString("th-TH")}</td>
                 <td>${item.devices?.name || "-"}</td>
                 <td class="${item.status ? 'on' : 'off'}">
                     ${item.status ? '🟢 เปิด' : '🔴 ปิด'}
@@ -336,11 +336,11 @@ function updateSummary(count) {
     document.getElementById("dateSummary").textContent = `พบข้อมูลทั้งหมด ${count} รายการ`;
 }
 
-// ผูกเหตุการณ์เมื่อผู้ใช้เลือกเปลี่ยนวันที่บนปฏิทิน
+// ผูกอีเวนต์เข้ากับปฏิทินและช่องค้นหา
 datePicker.addEventListener("change", filterAndRender);
 document.getElementById("searchInput").addEventListener("input", filterAndRender);
 
-// รันฟังก์ชันเพื่อเริ่มระบบ
+// รันระบบ
 loadHistory();
 </script>
 
