@@ -136,44 +136,55 @@ async function checkAuthAndLoad() {
   connectWS();
 }
 
-// ปรับปรุงการโหลดสถานะอุปกรณ์เพื่อป้องกันปุ่มเปลี่ยนคืนค่าเก่า
+// แก้ไขปัญหา Race Condition โดยการแยกดึงข้อมูลประวัติในคำสั่งเดียว ไม่ใช้ลูปยิง Query ซ้ำๆ
 async function loadDevices() {
-  const { data, error } = await supabase
+  const { data: devicesData, error: devError } = await supabase
     .from("devices")
     .select("*")
     .eq("user_id", currentUser.id)
     .order("created_at");
-  if (error) { console.error(error); return; }
-  devices = data || [];
+    
+  if (devError) { console.error(devError); return; }
+  devices = devicesData || [];
   
   renderDevices();
 
-  for (const d of devices) {
-    const { data: logData } = await supabase
-      .from("device_status_logs")
-      .select("status")
-      .eq("device_id", d.id)
-      .order("created_at", { ascending: false }) // ดึงประวัติที่ใหม่ที่สุดมา 1 ตัว
-      .limit(1);
+  if (devices.length === 0) return;
 
+  // ดึง Log ล่าสุดของทุกตัวพร้อมกัน ป้องกันปัญหาหน้าจอกลับมารีเซ็ตสถานะ
+  const deviceIds = devices.map(d => d.id);
+  const { data: logsData, error: logError } = await supabase
+    .from("device_status_logs")
+    .select("device_id, status, created_at")
+    .in("device_id", deviceIds)
+    .order("created_at", { ascending: false });
+
+  if (logError) { console.error(logError); return; }
+
+  // สร้างแผนผังเก็บสถานะล่าสุด (Map) ล่าสุดจริงของแต่ละ Device ID
+  const latestStatusMap = {};
+  if (logsData) {
+    logsData.forEach(log => {
+      if (!(log.device_id in latestStatusMap)) {
+        latestStatusMap[log.device_id] = log.status;
+      }
+    });
+  }
+
+  // อัปเดต UI ของปุ่มทั้งหมดตามแผนผังข้อมูลที่ได้มาอย่างถูกต้องแม่นยำ
+  devices.forEach(d => {
     const btn = document.getElementById("btn-" + d.id);
     if (btn) {
-      if (logData && logData.length > 0) {
-        const lastStatus = logData[0].status;
-        if (lastStatus === true) {
-          btn.className = "device on";
-          btn.innerHTML = "ON";
-        } else {
-          btn.className = "device off";
-          btn.innerHTML = "OFF";
-        }
+      const currentStatus = latestStatusMap[d.id];
+      if (currentStatus === true) {
+        btn.className = "device on";
+        btn.innerHTML = "ON";
       } else {
-        // หากไม่มี Log ใดๆ ในระบบเลย ให้ปุ่มเริ่มต้นที่สถานะปิด (OFF) เสมอ
         btn.className = "device off";
         btn.innerHTML = "OFF";
       }
     }
-  }
+  });
 }
 
 async function loadSchedules() {
