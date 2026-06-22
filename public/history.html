@@ -52,6 +52,7 @@ h2{
     color:#2c3e50;
     border-bottom: 2px solid #e8f5e9;
     padding-bottom: 10px;
+    font-size: 20px;
 }
 
 .backBtn{
@@ -76,7 +77,7 @@ h2{
     border: 2px solid #27ae60;
     border-radius: 16px;
     padding: 20px;
-    margin-bottom: 25px;
+    margin-bottom: 5px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -119,7 +120,7 @@ h2{
     border-radius: 20px;
 }
 
-/* ส่วนการแสดงผลกราฟ */
+/* พื้นที่จัดวางกราฟ */
 .chart-container {
     position: relative;
     height: 350px;
@@ -211,7 +212,7 @@ tr:hover {
 
     <div class="card">
         <div class="top-bar">
-            <h1>📜 ศูนย์บันทึกข้อมูล Smart Farm</h1>
+            <h1>📜 บันทึกและสถิติ Smart Farm</h1>
             <button class="backBtn" id="backBtn">🏠 กลับไปหน้าควบคุม</button>
         </div>
 
@@ -231,7 +232,7 @@ tr:hover {
                 <canvas id="farmChart"></canvas>
             </div>
         </div>
-        <div id="noDataMessage" class="no-data" style="display:none;">📅 ไม่มีบันทึกสถิติอุณหภูมิ อาหาร หรือน้ำในวันที่เลือก</div>
+        <div id="noDataMessage" class="no-data" style="display:none;">📅 ไม่มีข้อมูลสถิติเซนเซอร์ในวันที่เลือก</div>
     </div>
 
     <div class="card">
@@ -282,7 +283,7 @@ document.getElementById("backBtn").addEventListener("click", () => {
     location.href = "control.html";
 });
 
-// 1. โหลดข้อมูลประวัติสวิตช์อุปกรณ์
+// 1. โหลดข้อมูลประวัติสวิตช์อุปกรณ์ทั้งหมด
 async function loadHistory() {
     const { data, error } = await supabase
         .from("device_status_logs")
@@ -304,19 +305,19 @@ async function loadHistory() {
     filterAndRenderTable(); 
 }
 
-// 2. โหลดข้อมูลสิ่งแวดล้อมเพื่อนำมาวาดกราฟรายวัน
+// 2. โหลดข้อมูลสิ่งแวดล้อมจากตาราง sensor_logs เพื่อนำมาวาดกราฟแบบจำกัดวัน
 async function loadMetrics() {
     const selectedDate = datePicker.value;
     if (!selectedDate) return;
 
-    // ตั้งค่าช่วงเวลาเริ่ม-จบวันในระบบสากล ISO
+    // ตั้งช่วงเวลาสากลตั้งแต่ 00:00:00 ถึง 23:59:59 ของวันที่ระบุ
     const startOfDay = `${selectedDate}T00:00:00.000Z`;
     const endOfDay = `${selectedDate}T23:59:59.999Z`;
 
-    // 🛠️ ตรวจสอบชื่อตาราง "farm_metrics" และฟิลด์ของท่านให้สอดคล้องกันใน Supabase
+    // ดึงค่าตามโครงสร้างจริงของตาราง sensor_logs
     const { data, error } = await supabase
-        .from("farm_metrics")
-        .select("recorded_at, temperature, feed_level, water_level")
+        .from("sensor_logs")
+        .select("recorded_at, temperature, water_level, food_level")
         .gte("recorded_at", startOfDay)
         .lte("recorded_at", endOfDay)
         .order("recorded_at", { ascending: true });
@@ -335,11 +336,11 @@ async function loadMetrics() {
     document.getElementById("chartWrapper").style.display = "block";
     document.getElementById("noDataMessage").style.display = "none";
 
-    // สกัดข้อมูลเตรียมส่งเข้าตัวแปรตัวสร้างกราฟ
+    // จัดระเบียบ Array ส่งเข้า Chart.js
     const labels = data.map(item => new Date(item.recorded_at).toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' }));
     const tempData = data.map(item => item.temperature);
-    const feedData = data.map(item => item.feed_level);
     const waterData = data.map(item => item.water_level);
+    const feedData = data.map(item => item.food_level);
 
     updateChart(labels, tempData, feedData, waterData);
 }
@@ -349,7 +350,7 @@ function updateChart(labels, tempData, feedData, waterData) {
     const ctx = document.getElementById('farmChart').getContext('2d');
     
     if (farmChart) {
-        farmChart.destroy(); // ล้างอินสแตนซ์เก่าออกก่อนเพื่อป้องกันปัญหาบั๊กกราฟซ้อนเวลากดเปลี่ยนวัน
+        farmChart.destroy(); // ล้าง Instance เก่าออกเพื่อไม่ให้เกิดการซ้อนเหลื่อมเวลากดสลับวัน
     }
 
     farmChart = new Chart(ctx, {
@@ -366,7 +367,7 @@ function updateChart(labels, tempData, feedData, waterData) {
                     tension: 0.2
                 },
                 {
-                    label: '🌾 ปริมาณอาหาร (%)',
+                    label: '🌾 ระดับอาหาร (%)',
                     data: feedData,
                     borderColor: '#f39c12',
                     backgroundColor: 'rgba(243, 156, 18, 0.05)',
@@ -374,7 +375,7 @@ function updateChart(labels, tempData, feedData, waterData) {
                     tension: 0.2
                 },
                 {
-                    label: '💧 ปริมาณน้ำ (%)',
+                    label: '💧 ระดับน้ำ (%)',
                     data: waterData,
                     borderColor: '#3498db',
                     backgroundColor: 'rgba(52, 152, 219, 0.05)',
@@ -387,6 +388,7 @@ function updateChart(labels, tempData, feedData, waterData) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
+                // แยกแกน Y เป็น 2 แกน (ซ้าย: ค่าอุณหภูมิ, ขวา: อัตราเปรียบเทียบ %)
                 yTemp: {
                     type: 'linear',
                     position: 'left',
@@ -397,18 +399,18 @@ function updateChart(labels, tempData, feedData, waterData) {
                     position: 'right',
                     min: 0,
                     max: 100,
-                    title: { display: true, text: 'สัดส่วนความจุอาหาร/น้ำ (%)', font: { family: 'Kanit' } },
-                    grid: { drawOnChartArea: false } // ปิดเส้นตารางแกนขวาไม่ให้ลายตา
+                    title: { display: true, text: 'ระดับอาหาร / น้ำ (%)', font: { family: 'Kanit' } },
+                    grid: { drawOnChartArea: false }
                 },
                 x: {
-                    title: { display: true, text: 'เวลาตรวจสอบ', font: { family: 'Kanit' } }
+                    title: { display: true, text: 'เวลาแกนบันทึก', font: { family: 'Kanit' } }
                 }
             }
         }
     });
 }
 
-// ฟังก์ชันกรองข้อมูลประวัติตารางสวิตช์บอร์ด
+// ฟังก์ชันกรองข้อมูลประวัติตาราง
 function filterAndRenderTable() {
     const selectedDate = datePicker.value;
     const keyword = document.getElementById("searchInput").value.toLowerCase();
@@ -448,7 +450,7 @@ function renderTable(data) {
     if (data.length === 0) {
         table.innerHTML = `
             <tr>
-                <td colspan="3" class="empty">📅 ไม่มีข้อมูลประวัติการสลับสวิตช์ในวันที่เลือก</td>
+                <td colspan="3" class="empty">📅 ไม่มีข้อมูลประวัติการทำงานในวันที่เลือก</td>
             </tr>
         `;
         return;
@@ -471,7 +473,7 @@ function updateSummary(count) {
     document.getElementById("dateSummary").textContent = `พบข้อมูลประวัติทั้งหมด ${count} รายการ`;
 }
 
-// ดักจับอีเวนต์เมื่อผู้ใช้เลือกเปลี่ยนวันบนปฏิทิน -> สั่งโหลดกราฟและกรองข้อมูลตารางใหม่ทันที
+// เมื่อเปลี่ยนวันที่บนปฏิทิน จะทำการดึงข้อมูลกราฟใหม่และกรองตารางทันที
 datePicker.addEventListener("change", () => {
     filterAndRenderTable();
     loadMetrics();
@@ -479,7 +481,7 @@ datePicker.addEventListener("change", () => {
 
 document.getElementById("searchInput").addEventListener("input", filterAndRenderTable);
 
-// รันระบบดึงข้อมูลครั้งแรก
+// ฟังก์ชันเริ่มต้นรันระบบ
 async function init() {
     await loadHistory();
     await loadMetrics();
