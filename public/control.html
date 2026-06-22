@@ -120,6 +120,7 @@ let devices = [];
 let schedules = [];
 let currentUser = null;
 let schedulerInterval = null;
+let lastScheduleAction = "";
 
 // ตรวจสอบการล็อกอิน
 async function checkAuthAndLoad() {
@@ -269,13 +270,21 @@ async function checkSchedules() {
     if (!device) continue;
 
     // ถึงเวลาเปิด
-    if (currentTime === s.time_on) {
+    if (
+      currentTime === s.time_on &&
+      lastScheduleAction !== device.id + "_on_" + currentTime
+    ) {
+      lastScheduleAction = device.id + "_on_" + currentTime;
       await setDeviceState(device.id, device.pin, "on");
       showSchedulerStatus(`⏰ เปิด ${device.name} อัตโนมัติ`);
     }
 
     // ถึงเวลาปิด
-    if (currentTime === s.time_off) {
+    if (
+      currentTime === s.time_off &&
+      lastScheduleAction !== device.id + "_off_" + currentTime
+    ) {
+      lastScheduleAction = device.id + "_off_" + currentTime;
       await setDeviceState(device.id, device.pin, "off");
       showSchedulerStatus(`⏰ ปิด ${device.name} อัตโนมัติ`);
     }
@@ -296,7 +305,11 @@ function startScheduler() {
   checkSchedules();
   // ตรวจสอบทุก 60 วินาที
   if (schedulerInterval) clearInterval(schedulerInterval);
-  schedulerInterval = setInterval(checkSchedules, 60000);
+  schedulerInterval = setInterval(() => {
+    if (new Date().getSeconds() === 0) {
+      checkSchedules();
+    }
+  }, 1000);
   console.log("[Scheduler] เริ่มทำงานแล้ว — ตรวจสอบทุก 60 วินาที");
 }
 
@@ -398,8 +411,16 @@ window.startVoice = () => {
   if (!SpeechRecognition) { voiceText.innerHTML = "เบราว์เซอร์ไม่รองรับ"; return; }
 
   const recognition = new SpeechRecognition();
+
   recognition.lang = "th-TH";
-  voiceText.innerHTML = "🎤 กำลังฟัง...";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    voiceText.innerHTML = "🎤 กำลังฟัง...";
+  };
+
   recognition.start();
 
   recognition.onresult = (event) => {
@@ -419,7 +440,9 @@ window.startVoice = () => {
     });
   };
 
-  recognition.onerror = () => { voiceText.innerHTML = "❌ เกิดข้อผิดพลาด ลองใหม่อีกครั้ง"; };
+  recognition.onerror = (event) => {
+    voiceText.innerHTML = "❌ " + event.error;
+  };
   recognition.onend = () => {
     if (voiceText.innerHTML === "🎤 กำลังฟัง...") {
       voiceText.innerHTML = "หยุดฟังแล้ว";
