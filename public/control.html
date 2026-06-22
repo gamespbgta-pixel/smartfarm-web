@@ -6,7 +6,7 @@
 <title>Smart Farm Control</title>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
-*{ box-sizing:border-box; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body{ margin:0; font-family:'Kanit',sans-serif; background:linear-gradient(135deg,#e8f5e9,#f1f8ff); }
 .header{ background:linear-gradient(135deg,#2ecc71,#27ae60); color:white; padding:15px 25px; display:flex; justify-content:space-between; align-items:center; }
 .header-right{ display:flex; gap:10px; }
@@ -19,18 +19,21 @@ body{ margin:0; font-family:'Kanit',sans-serif; background:linear-gradient(135de
 .device-area{ display:grid; grid-template-columns:repeat(4,1fr); gap:15px; }
 .slot{ border:2px dashed #ccc; border-radius:20px; min-height:250px; text-align:center; padding:15px; position:relative; }
 .slot.empty{ display:flex; align-items:center; justify-content:center; color:#999; }
-.device{ width:90px; height:90px; border-radius:50%; border:none; font-size:18px; font-weight:bold; cursor:pointer; margin:10px auto; display:block; }
+.device{ width:90px; height:90px; border-radius:50%; border:none; font-size:18px; font-weight:bold; cursor:pointer; margin:10px auto; display:block; transition: transform 0.1s ease; }
+.device:active{ transform: scale(0.95); }
 .device.on{ background:#2ecc71; color:white; }
 .device.off{ background:#e74c3c; color:white; }
 .deleteBtn{ position:absolute; top:10px; right:10px; border:none; background:red; color:white; border-radius:50%; width:30px; height:30px; cursor:pointer; }
-input,select{ width:100%; padding:12px; margin-top:10px; border:1px solid #ddd; border-radius:10px; font-family:'Kanit',sans-serif; }
-button.action{ width:100%; background:#27ae60; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; margin-top:12px; font-family:'Kanit',sans-serif; font-size:14px; }
+input,select{ width:100%; padding:12px; margin-top:10px; border:1px solid #ddd; border-radius:10px; font-family:'Kanit',sans-serif; font-size:16px; } /* ป้องกัน iOS ซูมหน้าจอตอนกดพิมพ์ */
+button.action{ width:100%; background:#27ae60; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; margin-top:12px; font-family:'Kanit',sans-serif; font-size:15px; }
 .voiceBtn{ background:#3498db !important; }
+.voiceBtn.listening{ background:#e67e22 !important; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 .schedule-item{ background:#f0f9f0; border:1px solid #c3e6cb; border-radius:10px; padding:10px; margin-top:8px; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
 .schedule-item .del{ background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px; padding:0 5px; }
 #scheduleStatus{ margin-top:8px; font-size:13px; }
-#voiceText{ margin-top:8px; font-size:13px; color:#555; }
-#schedulerStatus{ position:fixed; bottom:15px; right:15px; background:#27ae60; color:white; padding:6px 12px; border-radius:20px; font-size:12px; font-family:'Kanit',sans-serif; opacity:0; transition:opacity 0.5s; pointer-events:none; }
+#voiceText{ margin-top:8px; font-size:13px; color:#555; font-weight:600; }
+#schedulerStatus{ position:fixed; bottom:15px; right:15px; background:#27ae60; color:white; padding:6px 12px; border-radius:20px; font-size:12px; font-family:'Kanit',sans-serif; opacity:0; transition:opacity 0.5s; pointer-events:none; z-index:9999; }
 @media(max-width:900px){
   .main{ grid-template-columns:1fr; }
   .device-area{ grid-template-columns:repeat(2,1fr); }
@@ -97,7 +100,7 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 
   <div class="card">
     <h3>ควบคุมด้วยเสียง</h3>
-    <button class="action voiceBtn" onclick="startVoice()">🎤 เริ่มฟังคำสั่ง</button>
+    <button class="action voiceBtn" id="voiceButton" onclick="startVoice()">🎤 เริ่มฟังคำสั่ง</button>
     <div id="voiceText"></div>
   </div>
 </div>
@@ -119,8 +122,8 @@ let schedules = [];
 let currentUser = null;
 let schedulerInterval = null;
 let lastScheduleAction = "";
+let recognition = null;
 
-// ตรวจสอบการล็อกอิน
 async function checkAuthAndLoad() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) { location.href = "index.html"; return; }
@@ -133,7 +136,6 @@ async function checkAuthAndLoad() {
   connectWS();
 }
 
-// โหลดอุปกรณ์ + ดึงสถานะล่าสุดมาอัปเดตหน้าจอ
 async function loadDevices() {
   const { data, error } = await supabase
     .from("devices")
@@ -143,10 +145,8 @@ async function loadDevices() {
   if (error) { console.error(error); return; }
   devices = data || [];
   
-  // แสดงโครงสร้างปุ่มก่อน
   renderDevices();
 
-  // ดึงประวัติสถานะแถวล่าสุดของแต่ละอุปกรณ์มาอัปเดตสถานะปุ่มจริง
   for (const d of devices) {
     const { data: logData } = await supabase
       .from("device_status_logs")
@@ -156,7 +156,7 @@ async function loadDevices() {
       .limit(1);
 
     if (logData && logData.length > 0) {
-      const lastStatus = logData[0].status; // true คือเปิด, false คือปิด
+      const lastStatus = logData[0].status;
       const btn = document.getElementById("btn-" + d.id);
       if (btn) {
         if (lastStatus === true) {
@@ -171,7 +171,6 @@ async function loadDevices() {
   }
 }
 
-// โหลดตารางเวลาทั้งหมด
 async function loadSchedules() {
   if (!devices.length) return;
   const deviceIds = devices.map(d => d.id);
@@ -184,7 +183,6 @@ async function loadSchedules() {
   renderScheduleList();
 }
 
-// แสดงโครงสร้างอุปกรณ์
 function renderDevices() {
   const area = document.getElementById("deviceArea");
   area.innerHTML = `
@@ -217,7 +215,6 @@ function renderDevices() {
   });
 }
 
-// แสดงรายการตั้งเวลา
 function renderScheduleList() {
   const list = document.getElementById("scheduleList");
   if (!list) return;
@@ -240,18 +237,14 @@ function getCurrentTime() {
          now.getMinutes().toString().padStart(2, '0');
 }
 
-// ฟังก์ชันหลักในการเปลี่ยนสถานะ (อัปเดต UI + ส่ง WebSocket + บันทึก Log)
 async function setDeviceState(id, pin, targetState) {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
 
   const isOn = btn.classList.contains("on");
-
-  // ตรวจสอบเพื่อไม่ทำงานซ้ำหากสถานะตรงกันอยู่แล้ว
   if (targetState === "on" && isOn) return;
   if (targetState === "off" && !isOn) return;
 
-  // 1. อัปเดต UI หน้าจอทันที
   if (targetState === "on") {
     btn.className = "device on";
     btn.innerHTML = "ON";
@@ -260,12 +253,10 @@ async function setDeviceState(id, pin, targetState) {
     btn.innerHTML = "OFF";
   }
 
-  // 2. ส่งข้อมูลสั่งงานผ่าน WebSocket
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({ type: "control", device: pin, status: targetState }));
   }
 
-  // 3. บันทึก Log ประวัติลงฐานข้อมูล Supabase
   const { error } = await supabase.from("device_status_logs").insert([{
     device_id: id,
     status: targetState === "on"
@@ -273,7 +264,6 @@ async function setDeviceState(id, pin, targetState) {
   if (error) console.error("บันทึกประวัติไม่สำเร็จ", error);
 }
 
-// สลับสถานะจากการกดปุ่มแบบ Manual บนหน้าจอ
 window.toggleDevice = async (id, pin) => {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
@@ -281,7 +271,6 @@ window.toggleDevice = async (id, pin) => {
   await setDeviceState(id, pin, targetState);
 };
 
-// ตรวจสอบเวลาอัตโนมัติ
 async function checkSchedules() {
   const currentTime = getCurrentTime();
 
@@ -301,28 +290,18 @@ async function checkSchedules() {
     const timeOnClean = s.time_on ? s.time_on.substring(0, 5) : "";
     const timeOffClean = s.time_off ? s.time_off.substring(0, 5) : "";
 
-    // ถึงเวลาเปิด
-    if (
-      currentTime === timeOnClean &&
-      lastScheduleAction !== device.id + "_on_" + currentTime
-    ) {
+    if (currentTime === timeOnClean && lastScheduleAction !== device.id + "_on_" + currentTime) {
       lastScheduleAction = device.id + "_on_" + currentTime;
       await setDeviceState(device.id, device.pin, "on");
       showSchedulerStatus(`⏰ เปิด ${device.name} อัตโนมัติ`);
     }
 
-    // ถึงเวลาปิด
-    if (
-      currentTime === timeOffClean &&
-      lastScheduleAction !== device.id + "_off_" + currentTime
-    ) {
+    if (currentTime === timeOffClean && lastScheduleAction !== device.id + "_off_" + currentTime) {
       lastScheduleAction = device.id + "_off_" + currentTime;
       await setDeviceState(device.id, device.pin, "off");
       showSchedulerStatus(`⏰ ปิด ${device.name} อัตโนมัติ`);
     }
   }
-
-  console.log(`[Scheduler] ตรวจสอบเวลา ${currentTime}`);
 }
 
 function showSchedulerStatus(msg) {
@@ -342,10 +321,91 @@ function startScheduler() {
       checkSchedules();
     }
   }, 1000);
-  console.log("[Scheduler] เริ่มทำงานแล้ว — ตรวจสอบทุก 60 วินาที");
 }
 
-// เพิ่มอุปกรณ์
+// ระบบเสียงรองรับโทรศัพท์ทุกรุ่น (Cross-Platform Mobile Fix)
+window.startVoice = async () => {
+  const voiceBtn = document.getElementById("voiceButton");
+  const voiceText = document.getElementById("voiceText");
+  
+  // ตรวจสอบคลาสสเปคมีเดีย (รองรับทั้ง Android, iOS Chrome, iOS Safari)
+  const SpeechRecognition = window.SpeechRecognition || 
+                            window.webkitSpeechRecognition || 
+                            window.mozSpeechRecognition || 
+                            window.msSpeechRecognition;
+                            
+  if (!SpeechRecognition) {
+    if (voiceText) voiceText.innerHTML = "❌ อุปกรณ์ของคุณไม่รองรับการสั่งงานด้วยเสียง";
+    return;
+  }
+
+  // เคลียร์ Instance เก่าทิ้งถ้าเคยทำงานค้างอยู่บน Mobile Background
+  if (recognition) {
+    try { recognition.stop(); } catch(e){}
+  }
+
+  // ขอสิทธิ์ไมโครโฟนล่วงหน้าโดยตรงเพื่อเสถียรภาพบน iOS
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟนในโทรศัพท์";
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = "th-TH";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  
+  // บังคับหยุดเมื่อพูดจบคำทันที ลดทรัพยากรบนสมาร์ทโฟน
+  recognition.continuous = false; 
+
+  recognition.onstart = () => {
+    if (voiceBtn) {
+      voiceBtn.classList.add("listening");
+      voiceBtn.innerHTML = "🔊 กำลังฟังคำสั่งเสียง...";
+    }
+    if (voiceText) voiceText.innerHTML = "พูดคำสั่งเปิด/ปิดอุปกรณ์ของคุณได้เลย";
+  };
+
+  recognition.onresult = async (event) => {
+    const text = event.results[0][0].transcript.trim().toLowerCase();
+    if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
+
+    let matched = false;
+    for (const d of devices) {
+      if (text.includes(d.on_key.toLowerCase())) {
+        await setDeviceState(d.id, d.pin, "on");
+        matched = true;
+      }
+      if (text.includes(d.off_key.toLowerCase())) {
+        await setDeviceState(d.id, d.pin, "off");
+        matched = true;
+      }
+    }
+    if(!matched && voiceText) {
+      voiceText.innerHTML = `ได้ยิน: "${text}" (คำสั่งไม่ตรงกับอุปกรณ์ใดๆ)`;
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error(event.error);
+    if (voiceText) {
+      if(event.error === 'not-allowed') voiceText.innerHTML = "❌ ไมโครโฟนถูกบล็อก";
+      else voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณากดลองอีกครั้ง";
+    }
+  };
+
+  recognition.onend = () => {
+    if (voiceBtn) {
+      voiceBtn.classList.remove("listening");
+      voiceBtn.innerHTML = "🎤 เริ่มฟังคำสั่ง";
+    }
+  };
+
+  recognition.start();
+};
+
 window.addDevice = async () => {
   const name = document.getElementById("deviceName").value.trim();
   const on = document.getElementById("onKey").value.trim();
@@ -367,7 +427,6 @@ window.addDevice = async () => {
   await loadSchedules();
 };
 
-// ลบอุปกรณ์
 window.deleteDevice = async (id) => {
   if (!confirm("ลบอุปกรณ์นี้?")) return;
   await supabase.from("schedules").delete().eq("device_id", id);
@@ -376,7 +435,6 @@ window.deleteDevice = async (id) => {
   await loadSchedules();
 };
 
-// บันทึกตารางเวลา
 window.saveSchedule = async () => {
   const deviceId = document.getElementById("deviceSelect").value;
   const onTime = document.getElementById("timeOn").value;
@@ -402,63 +460,18 @@ window.saveSchedule = async () => {
   startScheduler();
 };
 
-// ลบตารางเวลา
 window.deleteSchedule = async (deviceId) => {
   if (!confirm("ลบตารางเวลานี้?")) return;
   await supabase.from("schedules").delete().eq("device_id", deviceId);
   await loadSchedules();
 };
 
-// WebSocket
 function connectWS() {
   ws = new WebSocket("wss://smartfarm-web.onrender.com");
   ws.onopen = () => { ws.send(JSON.stringify({ type: "web" })); };
   ws.onclose = () => { setTimeout(connectWS, 5000); };
 }
 
-// สั่งงานด้วยเสียง
-window.startVoice = () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const voiceText = document.getElementById("voiceText");
-  if (!SpeechRecognition) { if (voiceText) voiceText.innerHTML = "เบราว์เซอร์ไม่รองรับ"; return; }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = "th-TH";
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-
-  recognition.onstart = () => {
-    if (voiceText) voiceText.innerHTML = "🎤 กำลังฟังคำสั่ง...";
-  };
-
-  recognition.start();
-
-  recognition.onresult = async (event) => {
-    const text = event.results[0][0].transcript.toLowerCase();
-    if (voiceText) voiceText.innerHTML = "ได้ยิน : " + text;
-
-    for (const d of devices) {
-      if (text.includes(d.on_key.toLowerCase())) {
-        await setDeviceState(d.id, d.pin, "on");
-      }
-      if (text.includes(d.off_key.toLowerCase())) {
-        await setDeviceState(d.id, d.pin, "off");
-      }
-    }
-  };
-
-  recognition.onerror = (event) => {
-    if (voiceText) voiceText.innerHTML = "❌ " + event.error;
-  };
-  recognition.onend = () => {
-    if (voiceText && voiceText.innerHTML === "🎤 กำลังฟังคำสั่ง...") {
-      voiceText.innerHTML = "หยุดฟังแล้ว";
-    }
-  };
-};
-
-// Logout
 window.logout = async () => {
   if (schedulerInterval) clearInterval(schedulerInterval);
   await supabase.auth.signOut();
