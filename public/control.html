@@ -55,7 +55,6 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 <div class="container">
 <div class="main">
 
-<!-- ฝั่งซ้าย -->
 <div>
   <div class="card">
     <h2>อุปกรณ์ทั้งหมด</h2>
@@ -72,7 +71,6 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
   </div>
 </div>
 
-<!-- ฝั่งขวา -->
 <div>
   <div class="card">
     <h3>เพิ่มอุปกรณ์</h3>
@@ -183,7 +181,7 @@ function renderDevices() {
     slot.innerHTML = `
       <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
       <h3>${d.name}</h3>
-      <button class="device off" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}',this)">OFF</button>
+      <button class="device off" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">OFF</button>
       <div>GPIO ${d.pin}</div>
       <div>🎤 เปิด : ${d.on_key}</div>
       <div>🎤 ปิด : ${d.off_key}</div>
@@ -209,28 +207,24 @@ function renderScheduleList() {
   });
 }
 
-// ==========================================
-// SCHEDULER — ตรวจสอบเวลาและสั่งงานอุปกรณ์
-// ==========================================
 function getCurrentTime() {
   const now = new Date();
   return now.getHours().toString().padStart(2, '0') + ':' +
          now.getMinutes().toString().padStart(2, '0');
 }
 
-// สั่งเปลี่ยนสถานะปุ่ม + ส่ง WebSocket + บันทึกประวัติ
-// targetState = "on" หรือ "off" (บังคับ ไม่ toggle)
+// ฟังก์ชันหลักในการเปลี่ยนสถานะ (รวมศูนย์กลางไว้ที่นี่)
 async function setDeviceState(id, pin, targetState) {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
 
   const isOn = btn.classList.contains("on");
 
-  // ไม่ทำซ้ำถ้าสถานะเหมือนเดิมอยู่แล้ว
+  // ตรวจสอบเพื่อไม่ทำงานซ้ำหากสถานะตรงกันอยู่แล้ว
   if (targetState === "on" && isOn) return;
   if (targetState === "off" && !isOn) return;
 
-  // อัปเดต UI ปุ่ม
+  // 1. อัปเดต UI หน้าจอทันที
   if (targetState === "on") {
     btn.className = "device on";
     btn.innerHTML = "ON";
@@ -239,12 +233,12 @@ async function setDeviceState(id, pin, targetState) {
     btn.innerHTML = "OFF";
   }
 
-  // ส่ง WebSocket
+  // 2. ส่งข้อมูลสั่งงานผ่าน WebSocket (สำหรับบอร์ด Hardware รับไปทำงานต่อ)
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({ type: "control", device: pin, status: targetState }));
   }
 
-  // บันทึกประวัติ
+  // 3. บันทึก Log ประวัติลงฐานข้อมูล Supabase
   const { error } = await supabase.from("device_status_logs").insert([{
     device_id: id,
     status: targetState === "on"
@@ -252,10 +246,18 @@ async function setDeviceState(id, pin, targetState) {
   if (error) console.error("บันทึกประวัติไม่สำเร็จ", error);
 }
 
+// สลับสถานะจากการกดปุ่มแบบ Manual บนหน้าจอ
+window.toggleDevice = async (id, pin) => {
+  const btn = document.getElementById("btn-" + id);
+  if (!btn) return;
+  const targetState = btn.classList.contains("on") ? "off" : "on";
+  await setDeviceState(id, pin, targetState);
+};
+
+// ตรวจสอบเวลาอัตโนมัติ
 async function checkSchedules() {
   const currentTime = getCurrentTime();
 
-  // โหลด schedules ใหม่ทุกครั้ง เพื่อให้ได้ข้อมูลล่าสุด
   if (devices.length) {
     const deviceIds = devices.map(d => d.id);
     const { data } = await supabase
@@ -295,15 +297,15 @@ async function checkSchedules() {
 
 function showSchedulerStatus(msg) {
   const el = document.getElementById("schedulerStatus");
-  el.textContent = msg;
-  el.style.opacity = "1";
-  setTimeout(() => { el.style.opacity = "0"; }, 3000);
+  if (el) {
+    el.textContent = msg;
+    el.style.opacity = "1";
+    setTimeout(() => { el.style.opacity = "0"; }, 3000);
+  }
 }
 
 function startScheduler() {
-  // ตรวจสอบทันทีตอนโหลด
   checkSchedules();
-  // ตรวจสอบทุก 60 วินาที
   if (schedulerInterval) clearInterval(schedulerInterval);
   schedulerInterval = setInterval(() => {
     if (new Date().getSeconds() === 0) {
@@ -315,31 +317,29 @@ function startScheduler() {
 
 // เพิ่มอุปกรณ์
 window.addDevice = async () => {
-  const name = deviceName.value.trim();
-  const on = onKey.value.trim();
-  const off = offKey.value.trim();
-  const pin = pinInput.value.trim();
+  const name = document.getElementById("deviceName").value.trim();
+  const on = document.getElementById("onKey").value.trim();
+  const off = document.getElementById("offKey").value.trim();
+  const pin = document.getElementById("pinInput").value.trim();
+  
   if (!name || !on || !off || !pin) { alert("กรอกข้อมูลให้ครบ"); return; }
   const { error } = await supabase.from("devices").insert([{
     user_id: currentUser.id,
     name, on_key: on, off_key: off, pin
   }]);
   if (error) { alert(error.message); return; }
-  deviceName.value = ""; onKey.value = ""; offKey.value = ""; pinInput.value = "";
+  
+  document.getElementById("deviceName").value = ""; 
+  document.getElementById("onKey").value = ""; 
+  document.getElementById("offKey").value = ""; 
+  document.getElementById("pinInput").value = "";
   await loadDevices();
   await loadSchedules();
-};
-
-// เปิด/ปิดอุปกรณ์
-window.toggleDevice = async (id, pin, btn) => {
-  const targetState = btn.classList.contains("on") ? "off" : "on";
-  await setDeviceState(id, pin, targetState);
 };
 
 // ลบอุปกรณ์
 window.deleteDevice = async (id) => {
   if (!confirm("ลบอุปกรณ์นี้?")) return;
-  // ลบ schedules ของอุปกรณ์นี้ก่อน
   await supabase.from("schedules").delete().eq("device_id", id);
   await supabase.from("devices").delete().eq("id", id);
   await loadDevices();
@@ -348,12 +348,12 @@ window.deleteDevice = async (id) => {
 
 // บันทึกตารางเวลา
 window.saveSchedule = async () => {
-  const deviceId = deviceSelect.value;
-  const onTime = timeOn.value;
-  const offTime = timeOff.value;
+  const deviceId = document.getElementById("deviceSelect").value;
+  const onTime = document.getElementById("timeOn").value;
+  const offTime = document.getElementById("timeOff").value;
+  const statusEl = document.getElementById("scheduleStatus");
   if (!deviceId || !onTime || !offTime) { alert("กรอกข้อมูลให้ครบ"); return; }
 
-  // ลบเวลาเก่าก่อน
   await supabase.from("schedules").delete().eq("device_id", deviceId);
 
   const { error } = await supabase.from("schedules").insert([{
@@ -363,10 +363,11 @@ window.saveSchedule = async () => {
   }]);
   if (error) { alert(error.message); return; }
 
-  scheduleStatus.innerHTML = "✅ บันทึกเวลาเรียบร้อย";
-  setTimeout(() => { scheduleStatus.innerHTML = ""; }, 3000);
+  if (statusEl) {
+    statusEl.innerHTML = "✅ บันทึกเวลาเรียบร้อย";
+    setTimeout(() => { statusEl.innerHTML = ""; }, 3000);
+  }
 
-  // รีโหลด schedules และรีสตาร์ท scheduler ทันที
   await loadSchedules();
   startScheduler();
 };
@@ -385,46 +386,43 @@ function connectWS() {
   ws.onclose = () => { setTimeout(connectWS, 5000); };
 }
 
-// Voice
+// สั่งงานด้วยเสียง (ซิงค์เข้า setDeviceState โดยตรง)
 window.startVoice = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { voiceText.innerHTML = "เบราว์เซอร์ไม่รองรับ"; return; }
+  const voiceText = document.getElementById("voiceText");
+  if (!SpeechRecognition) { if (voiceText) voiceText.innerHTML = "เบราว์เซอร์ไม่รองรับ"; return; }
 
   const recognition = new SpeechRecognition();
-
   recognition.lang = "th-TH";
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
-    voiceText.innerHTML = "🎤 กำลังฟัง...";
+    if (voiceText) voiceText.innerHTML = "🎤 กำลังฟังคำสั่ง...";
   };
 
   recognition.start();
 
-  recognition.onresult = (event) => {
+  recognition.onresult = async (event) => {
     const text = event.results[0][0].transcript.toLowerCase();
-    voiceText.innerHTML = "ได้ยิน : " + text;
+    if (voiceText) voiceText.innerHTML = "ได้ยิน : " + text;
 
-    devices.forEach(d => {
-      const btn = document.getElementById("btn-" + d.id);
-      if (!btn) return;
-
-      if (text.includes(d.on_key.toLowerCase()) && !btn.classList.contains("on")) {
-        toggleDevice(d.id, d.pin, btn);
+    for (const d of devices) {
+      if (text.includes(d.on_key.toLowerCase())) {
+        await setDeviceState(d.id, d.pin, "on");
       }
-      if (text.includes(d.off_key.toLowerCase()) && btn.classList.contains("on")) {
-        toggleDevice(d.id, d.pin, btn);
+      if (text.includes(d.off_key.toLowerCase())) {
+        await setDeviceState(d.id, d.pin, "off");
       }
-    });
+    }
   };
 
   recognition.onerror = (event) => {
-    voiceText.innerHTML = "❌ " + event.error;
+    if (voiceText) voiceText.innerHTML = "❌ " + event.error;
   };
   recognition.onend = () => {
-    if (voiceText.innerHTML === "🎤 กำลังฟัง...") {
+    if (voiceText && voiceText.innerHTML === "🎤 กำลังฟังคำสั่ง...") {
       voiceText.innerHTML = "หยุดฟังแล้ว";
     }
   };
