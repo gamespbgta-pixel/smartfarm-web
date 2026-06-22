@@ -3,207 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ประวัติการทำงานและสถิติ Smart Farm (รายวัน)</title>
+<title>บันทึกและสถิติ Smart Farm ไฮบริดเรียลไทม์</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-*{
-    box-sizing:border-box;
-}
-
-body{
-    margin:0;
-    font-family:'Kanit',sans-serif;
-    background:linear-gradient(135deg,#e8f5e9,#f1f8ff);
-}
-
-.container{
-    max-width:1200px;
-    margin:auto;
-    padding:25px;
-}
-
-.card{
-    background:white;
-    border-radius:20px;
-    padding:25px;
-    box-shadow:0 10px 25px rgba(0,0,0,.1);
-    margin-bottom: 25px;
-}
-
-.top-bar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    flex-wrap:wrap;
-    gap:15px;
-    margin-bottom:20px;
-}
-
-h1{
-    margin:0;
-    color:#27ae60;
-}
-
-h2{
-    margin-top:0;
-    color:#2c3e50;
-    border-bottom: 2px solid #e8f5e9;
-    padding-bottom: 10px;
-    font-size: 20px;
-}
-
-.backBtn{
-    border:none;
-    background:#27ae60;
-    color:white;
-    padding:12px 20px;
-    border-radius:12px;
-    font-family:'Kanit',sans-serif;
-    font-size:16px;
-    cursor:pointer;
-    transition: background 0.2s;
-}
-
-.backBtn:hover{
-    background:#219150;
-}
-
-/* ส่วนเลือกวันที่สไตล์ปฏิทิน */
-.calendar-section {
-    background: #f9fbf9;
-    border: 2px solid #27ae60;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.calendar-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.calendar-wrapper label {
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.calendar-section input[type="date"] {
-    padding: 10px 15px;
-    border: 2px solid #cbd5e1;
-    border-radius: 10px;
-    font-family: 'Kanit', sans-serif;
-    font-size: 16px;
-    outline: none;
-    color: #333;
-    background: white;
-}
-
-.calendar-section input[type="date"]:focus {
-    border-color: #27ae60;
-}
-
-.date-summary {
-    font-size: 16px;
-    font-weight: 600;
-    color: #27ae60;
-    background: #e8f5e9;
-    padding: 8px 16px;
-    border-radius: 20px;
-}
-
-/* พื้นที่จัดวางกราฟ */
-.chart-container {
-    position: relative;
-    height: 350px;
-    width: 100%;
-    margin-top: 15px;
-}
-
-.no-data {
-    text-align: center;
-    color: #999;
-    padding: 40px;
-    font-size: 16px;
-}
-
-.searchBox {
-    margin-bottom: 20px;
-}
-
-.searchBox input {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    font-family: 'Kanit', sans-serif;
-    font-size: 16px;
-    outline: none;
-}
-
-.searchBox input:focus {
-    border-color: #27ae60;
-    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th {
-    background: linear-gradient(135deg,#2ecc71,#27ae60);
-    color: white;
-    padding: 15px;
-}
-
-td {
-    padding: 15px;
-    text-align: center;
-    border-bottom: 1px solid #eee;
-}
-
-tr:hover {
-    background: #f5fff7;
-}
-
-.on {
-    color: #2ecc71;
-    font-weight: bold;
-}
-
-.off {
-    color: #e74c3c;
-    font-weight: bold;
-}
-
-.empty {
-    color: #999;
-    padding: 40px;
-    font-size: 18px;
-}
-
-@media(max-width:768px){
-    .top-bar, .calendar-section {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .backBtn {
-        width: 100%;
-        text-align: center;
-    }
-    table {
-        font-size: 14px;
-    }
-}
+*{ box-sizing:border-box; }
+body{ margin:0; font-family:'Kanit',sans-serif; background:linear-gradient(135deg,#e8f5e9,#f1f8ff); }
+.container{ max-width:1200px; margin:auto; padding:25px; }
+.card{ background:white; border-radius:20px; padding:25px; box-shadow:0 10px 25px rgba(0,0,0,.1); margin-bottom: 25px; }
+.top-bar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px; }
+h1{ margin:0; color:#27ae60; }
+h2{ margin-top:0; color:#2c3e50; border-bottom:2px solid #e8f5e9; padding-bottom:10px; font-size:20px; }
+.backBtn{ border:none; background:#27ae60; color:white; padding:12px 20px; border-radius:12px; font-family:'Kanit',sans-serif; font-size:16px; cursor:pointer; transition:background 0.2s; }
+.backBtn:hover{ background:#219150; }
+.calendar-section { background:#f9fbf9; border:2px solid #27ae60; border-radius:16px; padding:20px; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:15px; }
+.calendar-wrapper { display:flex; align-items:center; gap:10px; }
+.calendar-wrapper label { font-weight:600; color:#2c3e50; }
+.calendar-section input[type="date"] { padding:10px 15px; border:2px solid #cbd5e1; border-radius:10px; font-family:'Kanit',sans-serif; font-size:16px; outline:none; }
+.calendar-section input[type="date"]:focus { border-color:#27ae60; }
+.date-summary { font-size:16px; font-weight:600; color:#27ae60; background:#e8f5e9; padding:8px 16px; border-radius:20px; }
+.badge { font-size:14px; padding:4px 10px; border-radius:8px; margin-left:10px; font-weight:bold; }
+.badge-realtime { background:#e74c3c; color:white; animation: blink 1.5s infinite; }
+.badge-history { background:#7f8c8d; color:white; }
+@keyframes blink { 0% {opacity:1;} 50% {opacity:0.4;} 100% {opacity:1;} }
+.chart-container { position:relative; height:350px; width:100%; margin-top:15px; }
+.no-data { text-align:center; color:#999; padding:40px; font-size:16px; }
+.searchBox { margin-bottom:20px; }
+.searchBox input { width:100%; padding:14px; border:1px solid #cbd5e1; border-radius:12px; font-family:'Kanit',sans-serif; font-size:16px; outline:none; }
+.searchBox input:focus { border-color:#27ae60; box-shadow:0 0 0 3px rgba(39, 174, 96, 0.1); }
+table { width:100%; border-collapse:collapse; }
+th { background:linear-gradient(135deg,#2ecc71,#27ae60); color:white; padding:15px; }
+td { padding:15px; text-align:center; border-bottom:1px solid #eee; }
+tr:hover { background:#f5fff7; }
+.on { color:#2ecc71; font-weight:bold; }
+.off { color:#e74c3c; font-weight:bold; }
+.empty { color:#999; padding:40px; font-size:18px; }
+@media(max-width:768px){ .top-bar, .calendar-section { flex-direction:column; align-items:stretch; } .backBtn { text-align:center; } }
 </style>
 </head>
 <body>
@@ -218,8 +55,9 @@ tr:hover {
 
         <div class="calendar-section">
             <div class="calendar-wrapper">
-                <label for="datePicker">📅 เลือกวันที่ต้องการตรวจสอบข้อมูล:</label>
+                <label for="datePicker">📅 เลือกวันที่ตรวจสอบ:</label>
                 <input type="date" id="datePicker">
+                <span id="statusBadge" class="badge">กำลังตรวจสอบ...</span>
             </div>
             <div class="date-summary" id="dateSummary">พบข้อมูลประวัติ 0 รายการ</div>
         </div>
@@ -238,7 +76,7 @@ tr:hover {
     <div class="card">
         <h2>⏱️ บันทึกการเปิด-ปิด อุปกรณ์</h2>
         <div class="searchBox">
-            <input type="text" id="searchInput" placeholder="🔍 ค้นหาซ้ำด้วยชื่ออุปกรณ์ภายในวันนั้น...">
+            <input type="text" id="searchInput" placeholder="🔍 ค้นหาด้วยชื่ออุปกรณ์...">
         </div>
 
         <table>
@@ -250,9 +88,7 @@ tr:hover {
                 </tr>
             </thead>
             <tbody id="historyTable">
-                <tr>
-                    <td colspan="3" class="empty">กำลังโหลดข้อมูลประวัติ...</td>
-                </tr>
+                <tr><td colspan="3" class="empty">กำลังโหลดข้อมูล...</td></tr>
             </tbody>
         </table>
     </div>
@@ -264,57 +100,39 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let historyData = [];
 let farmChart = null;
+let realtimeChannel = null; // ตัวแปรเก็บช่องสัญญาณดักฟัง
 
-// ตั้งค่าวันที่เริ่มต้นในปฏิทินให้เป็น "วันนี้"
 const datePicker = document.getElementById("datePicker");
-const today = new Date();
-const yyyy = today.getFullYear();
-const mm = String(today.getMonth() + 1).padStart(2, '0');
-const dd = String(today.getDate()).padStart(2, '0');
-datePicker.value = `${yyyy}-${mm}-${dd}`;
+const statusBadge = document.getElementById("statusBadge");
 
-// ปุ่มกลับหน้าควบคุม
-document.getElementById("backBtn").addEventListener("click", () => {
-    location.href = "control.html";
-});
+// ดึงเวลาวันนี้ในฟอร์แมต "YYYY-MM-DD" ของฝั่ง Client Local 
+const todayStr = new Date().toLocaleDateString('sv'); // ฟอร์แมตสวีเดนจะได้ YYYY-MM-DD เป๊ะๆ
+datePicker.value = todayStr;
 
-// 1. โหลดข้อมูลประวัติสวิตช์อุปกรณ์ทั้งหมด
+document.getElementById("backBtn").addEventListener("click", () => { location.href = "control.html"; });
+
+// 1. ดึงข้อมูลประวัติตาราง
 async function loadHistory() {
-    const { data, error } = await supabase
-        .from("device_status_logs")
-        .select(`
-            device_id,
-            status,
-            changed_at,
-            devices(name)
-        `);
-
-    if (error) {
-        console.error("Supabase History Error:", error);
-        return;
+    const { data, error } = await supabase.from("device_status_logs").select(`device_id, status, changed_at, devices(name)`);
+    if (!error) {
+        historyData = data || [];
+        historyData.sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at));
+        filterAndRenderTable();
     }
-
-    historyData = data || [];
-    historyData.sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at));
-
-    filterAndRenderTable(); 
 }
 
-// 2. โหลดข้อมูลสิ่งแวดล้อมจากตาราง sensor_logs เพื่อนำมาวาดกราฟแบบจำกัดวัน
+// 2. ดึงข้อมูลสถิติเซนเซอร์มาวาดกราฟ
 async function loadMetrics() {
     const selectedDate = datePicker.value;
     if (!selectedDate) return;
 
-    // ตั้งช่วงเวลาสากลตั้งแต่ 00:00:00 ถึง 23:59:59 ของวันที่ระบุ
     const startOfDay = `${selectedDate}T00:00:00.000Z`;
     const endOfDay = `${selectedDate}T23:59:59.999Z`;
 
-    // ดึงค่าตามโครงสร้างจริงของตาราง sensor_logs
     const { data, error } = await supabase
         .from("sensor_logs")
         .select("recorded_at, temperature, water_level, food_level")
@@ -322,10 +140,7 @@ async function loadMetrics() {
         .lte("recorded_at", endOfDay)
         .order("recorded_at", { ascending: true });
 
-    if (error) {
-        console.error("Supabase Metrics Error:", error);
-        return;
-    }
+    if (error) return;
 
     if (!data || data.length === 0) {
         document.getElementById("chartWrapper").style.display = "none";
@@ -336,7 +151,6 @@ async function loadMetrics() {
     document.getElementById("chartWrapper").style.display = "block";
     document.getElementById("noDataMessage").style.display = "none";
 
-    // จัดระเบียบ Array ส่งเข้า Chart.js
     const labels = data.map(item => new Date(item.recorded_at).toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' }));
     const tempData = data.map(item => item.temperature);
     const waterData = data.map(item => item.water_level);
@@ -345,146 +159,115 @@ async function loadMetrics() {
     updateChart(labels, tempData, feedData, waterData);
 }
 
-// ฟังก์ชันสร้างหรือวาดทับกราฟเส้นสภาพแวดล้อม
+// 3. ฟังก์ชันสลับโหมดควบคุมช่องสัญญาณ Realtime ⚙️
+function manageRealtimeSubscription() {
+    const selectedDate = datePicker.value;
+    const currentToday = new Date().toLocaleDateString('sv');
+
+    // ตรวจสอบเงื่อนไข: ถ้าวันที่เลือกตรงกับวันปัจจุบัน
+    if (selectedDate === currentToday) {
+        statusBadge.textContent = "🔴 LIVE เรียลไทม์";
+        statusBadge.className = "badge badge-realtime";
+
+        // หากยังไม่ได้ต่อท่อฟัง ให้เปิดช่องสัญญาณดักฟังทันที
+        if (!realtimeChannel) {
+            realtimeChannel = supabase
+                .channel('farm-hybrid-channel')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sensor_logs' }, () => {
+                    loadMetrics(); // มีเซนเซอร์ใหม่ยิงเข้า -> วาดกราฟใหม่สดๆ
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'device_status_logs' }, async () => {
+                    await loadHistory(); // มีคนกดสวิตช์เพิ่ม -> อัปเดตตารางประวัติทันที
+                })
+                .subscribe();
+        }
+    } else {
+        // หากผู้ใช้หนีไปกดดูวันอื่น -> ปิดท่อรับข้อมูลเรียลไทม์ทิ้งเพื่อความประหยัดและแม่นยำ
+        statusBadge.textContent = "📅 ข้อมูลย้อนหลัง";
+        statusBadge.className = "badge badge-history";
+        
+        if (realtimeChannel) {
+            supabase.removeChannel(realtimeChannel);
+            realtimeChannel = null;
+        }
+    }
+}
+
 function updateChart(labels, tempData, feedData, waterData) {
     const ctx = document.getElementById('farmChart').getContext('2d');
-    
-    if (farmChart) {
-        farmChart.destroy(); // ล้าง Instance เก่าออกเพื่อไม่ให้เกิดการซ้อนเหลื่อมเวลากดสลับวัน
-    }
+    if (farmChart) { farmChart.destroy(); }
 
     farmChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [
-                {
-                    label: '🌡️ อุณหภูมิ (°C)',
-                    data: tempData,
-                    borderColor: '#e74c3c',
-                    backgroundColor: 'rgba(231, 76, 60, 0.05)',
-                    yAxisID: 'yTemp',
-                    tension: 0.2
-                },
-                {
-                    label: '🌾 ระดับอาหาร (%)',
-                    data: feedData,
-                    borderColor: '#f39c12',
-                    backgroundColor: 'rgba(243, 156, 18, 0.05)',
-                    yAxisID: 'yPercent',
-                    tension: 0.2
-                },
-                {
-                    label: '💧 ระดับน้ำ (%)',
-                    data: waterData,
-                    borderColor: '#3498db',
-                    backgroundColor: 'rgba(52, 152, 219, 0.05)',
-                    yAxisID: 'yPercent',
-                    tension: 0.2
-                }
+                { label: '🌡️ อุณหภูมิ (°C)', data: tempData, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.05)', yAxisID: 'yTemp', tension: 0.2 },
+                { label: '🌾 ระดับอาหาร (%)', data: feedData, borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.05)', yAxisID: 'yPercent', tension: 0.2 },
+                { label: '💧 ระดับน้ำ (%)', data: waterData, borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.05)', yAxisID: 'yPercent', tension: 0.2 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                // แยกแกน Y เป็น 2 แกน (ซ้าย: ค่าอุณหภูมิ, ขวา: อัตราเปรียบเทียบ %)
-                yTemp: {
-                    type: 'linear',
-                    position: 'left',
-                    title: { display: true, text: 'อุณหภูมิ (°C)', font: { family: 'Kanit' } }
-                },
-                yPercent: {
-                    type: 'linear',
-                    position: 'right',
-                    min: 0,
-                    max: 100,
-                    title: { display: true, text: 'ระดับอาหาร / น้ำ (%)', font: { family: 'Kanit' } },
-                    grid: { drawOnChartArea: false }
-                },
-                x: {
-                    title: { display: true, text: 'เวลาแกนบันทึก', font: { family: 'Kanit' } }
-                }
+                yTemp: { type: 'linear', position: 'left', title: { display: true, text: 'อุณหภูมิ (°C)' } },
+                yPercent: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'ระดับอาหาร / น้ำ (%)' }, grid: { drawOnChartArea: false } }
             }
         }
     });
 }
 
-// ฟังก์ชันกรองข้อมูลประวัติตาราง
 function filterAndRenderTable() {
     const selectedDate = datePicker.value;
     const keyword = document.getElementById("searchInput").value.toLowerCase();
-
-    if (!selectedDate) {
-        renderTable([]);
-        updateSummary(0);
-        return;
-    }
+    if (!selectedDate) return;
 
     const filtered = historyData.filter(item => {
         if (!item.changed_at) return false;
-        
         const logDate = new Date(item.changed_at);
-        const itemYear = logDate.getFullYear();
-        const itemMonth = String(logDate.getMonth() + 1).padStart(2, '0');
-        const itemDay = String(logDate.getDate()).padStart(2, '0');
-        const itemDateString = `${itemYear}-${itemMonth}-${itemDay}`;
-
+        const itemDateString = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`;
+        
         const matchesDate = (itemDateString === selectedDate);
-
         const name = (item.devices?.name || "").toLowerCase();
         const statusText = item.status ? "เปิด" : "ปิด";
-        const matchesKeyword = name.includes(keyword) || statusText.includes(keyword);
-
-        return matchesDate && matchesKeyword;
+        return matchesDate && (name.includes(keyword) || statusText.includes(keyword));
     });
 
     renderTable(filtered);
-    updateSummary(filtered.length);
+    document.getElementById("dateSummary").textContent = `พบข้อมูลประวัติทั้งหมด ${filtered.length} รายการ`;
 }
 
 function renderTable(data) {
     const table = document.getElementById("historyTable");
     table.innerHTML = "";
-
     if (data.length === 0) {
-        table.innerHTML = `
-            <tr>
-                <td colspan="3" class="empty">📅 ไม่มีข้อมูลประวัติการทำงานในวันที่เลือก</td>
-            </tr>
-        `;
+        table.innerHTML = `<tr><td colspan="3" class="empty">📅 ไม่มีข้อมูลในวันที่เลือก</td></tr>`;
         return;
     }
-
     data.forEach(item => {
         table.innerHTML += `
             <tr>
                 <td>${new Date(item.changed_at).toLocaleString("th-TH")}</td>
                 <td>${item.devices?.name || "-"}</td>
-                <td class="${item.status ? 'on' : 'off'}">
-                    ${item.status ? '🟢 เปิด' : '🔴 ปิด'}
-                </td>
-            </tr>
-        `;
+                <td class="${item.status ? 'on' : 'off'}">${item.status ? '🟢 เปิด' : '🔴 ปิด'}</td>
+            </tr>`;
     });
 }
 
-function updateSummary(count) {
-    document.getElementById("dateSummary").textContent = `พบข้อมูลประวัติทั้งหมด ${count} รายการ`;
-}
-
-// เมื่อเปลี่ยนวันที่บนปฏิทิน จะทำการดึงข้อมูลกราฟใหม่และกรองตารางทันที
+// เมื่อเปลี่ยนวันที่บนปฏิทินให้ทำงานแบบไฮบริด
 datePicker.addEventListener("change", () => {
     filterAndRenderTable();
     loadMetrics();
+    manageRealtimeSubscription(); // คำนวณว่าจะสับเปลี่ยนโหมดเรียลไทม์หรือปิดประวัติย้อนหลัง
 });
 
 document.getElementById("searchInput").addEventListener("input", filterAndRenderTable);
 
-// ฟังก์ชันเริ่มต้นรันระบบ
 async function init() {
     await loadHistory();
     await loadMetrics();
+    manageRealtimeSubscription(); // ตรวจเช็กโหมดตั้งต้นตอนเปิดเว็บบนวันล่าสุด
 }
 init();
 </script>
