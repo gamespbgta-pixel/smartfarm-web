@@ -136,7 +136,7 @@ async function checkAuthAndLoad() {
   connectWS();
 }
 
-// แก้ไขปัญหา Race Condition โดยการแยกดึงข้อมูลประวัติในคำสั่งเดียว ไม่ใช้ลูปยิง Query ซ้ำๆ
+// 1. ปรับปรุงตัวดึงข้อมูลแบบคู่ขนาน แม่นยำ และไม่ผสมค่าเก่ามั่วซั่ว
 async function loadDevices() {
   const { data: devicesData, error: devError } = await supabase
     .from("devices")
@@ -146,45 +146,33 @@ async function loadDevices() {
     
   if (devError) { console.error(devError); return; }
   devices = devicesData || [];
-  
-  renderDevices();
 
-  if (devices.length === 0) return;
-
-  // ดึง Log ล่าสุดของทุกตัวพร้อมกัน ป้องกันปัญหาหน้าจอกลับมารีเซ็ตสถานะ
-  const deviceIds = devices.map(d => d.id);
-  const { data: logsData, error: logError } = await supabase
-    .from("device_status_logs")
-    .select("device_id, status, created_at")
-    .in("device_id", deviceIds)
-    .order("created_at", { ascending: false });
-
-  if (logError) { console.error(logError); return; }
-
-  // สร้างแผนผังเก็บสถานะล่าสุด (Map) ล่าสุดจริงของแต่ละ Device ID
-  const latestStatusMap = {};
-  if (logsData) {
-    logsData.forEach(log => {
-      if (!(log.device_id in latestStatusMap)) {
-        latestStatusMap[log.device_id] = log.status;
-      }
-    });
+  if (devices.length === 0) {
+    renderDevices({});
+    return;
   }
 
-  // อัปเดต UI ของปุ่มทั้งหมดตามแผนผังข้อมูลที่ได้มาอย่างถูกต้องแม่นยำ
-  devices.forEach(d => {
-    const btn = document.getElementById("btn-" + d.id);
-    if (btn) {
-      const currentStatus = latestStatusMap[d.id];
-      if (currentStatus === true) {
-        btn.className = "device on";
-        btn.innerHTML = "ON";
-      } else {
-        btn.className = "device off";
-        btn.innerHTML = "OFF";
-      }
+  // ใช้ Promise.all ดึงค่าสถานะล่าสุดที่แท้จริงของ "แต่ละตัวแยกจากกัน" ป้องกันข้อมูลตีกันตอนย้ายหน้า
+  const latestStatusMap = {};
+  const logPromises = devices.map(async (d) => {
+    const { data } = await supabase
+      .from("device_status_logs")
+      .select("status")
+      .eq("device_id", d.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    
+    if (data && data.length > 0) {
+      latestStatusMap[d.id] = data[0].status; // เก็บสถานะจริง (true หรือ false)
+    } else {
+      latestStatusMap[d.id] = false; // ถ้าไม่มีประวัติ ให้ค่าเริ่มต้นเป็นปิด
     }
   });
+
+  await Promise.all(logPromises);
+
+  // ส่งค่าสถานะล่าสุดเข้าไปวาดปุ่มทีเดียว เพื่อไม่ให้ปุ่มดีดกลับเป็น OFF เอง
+  renderDevices(latestStatusMap);
 }
 
 async function loadSchedules() {
@@ -199,7 +187,8 @@ async function loadSchedules() {
   renderScheduleList();
 }
 
-function renderDevices() {
+// 2. ปรับให้สร้างปุ่มโดยใส่สถานะที่ดึงมาจากฐานข้อมูลทันที ไม่ Hardcode เป็น "off" อีกต่อไป
+function renderDevices(latestStatusMap = {}) {
   const area = document.getElementById("deviceArea");
   area.innerHTML = `
     <div class="slot empty">ช่องที่ 1</div>
@@ -218,10 +207,16 @@ function renderDevices() {
     if (!slot) return;
     slot.classList.remove("empty");
     slot.dataset.deviceId = d.id;
+
+    // เช็กสถานะจากตาราง Map ที่ส่งมา
+    const isDeviceOn = latestStatusMap[d.id] === true;
+    const btnClass = isDeviceOn ? "device on" : "device off";
+    const btnText = isDeviceOn ? "ON" : "OFF";
+
     slot.innerHTML = `
       <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
       <h3>${d.name}</h3>
-      <button class="device off" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">OFF</button>
+      <button class="${btnClass}" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">${btnText}</button>
       <div>GPIO ${d.pin}</div>
       <div>🎤 เปิด : ${d.on_key}</div>
       <div>🎤 ปิด : ${d.off_key}</div>
