@@ -136,7 +136,7 @@ async function checkAuthAndLoad() {
   connectWS();
 }
 
-// 1. ปรับปรุงตัวดึงข้อมูลแบบคู่ขนาน แม่นยำ และไม่ผสมค่าเก่ามั่วซั่ว
+// จุดแก้ไขหลัก: ดึงข้อมูลให้เสร็จรวดเดียวก่อน แล้วสั่งวาดหน้าจอเพียงรอบเดียว
 async function loadDevices() {
   const { data: devicesData, error: devError } = await supabase
     .from("devices")
@@ -152,7 +152,7 @@ async function loadDevices() {
     return;
   }
 
-  // ใช้ Promise.all ดึงค่าสถานะล่าสุดที่แท้จริงของ "แต่ละตัวแยกจากกัน" ป้องกันข้อมูลตีกันตอนย้ายหน้า
+  // ดึงค่าสถานะล่าสุดรายตัวแบบรันพร้อมกัน (Parallel)
   const latestStatusMap = {};
   const logPromises = devices.map(async (d) => {
     const { data } = await supabase
@@ -163,15 +163,15 @@ async function loadDevices() {
       .limit(1);
     
     if (data && data.length > 0) {
-      latestStatusMap[d.id] = data[0].status; // เก็บสถานะจริง (true หรือ false)
+      latestStatusMap[d.id] = data[0].status;
     } else {
-      latestStatusMap[d.id] = false; // ถ้าไม่มีประวัติ ให้ค่าเริ่มต้นเป็นปิด
+      latestStatusMap[d.id] = false; // ค่าตั้งต้นถ้าไม่เคยมีประวัติการกดเปิดเลย
     }
   });
 
   await Promise.all(logPromises);
 
-  // ส่งค่าสถานะล่าสุดเข้าไปวาดปุ่มทีเดียว เพื่อไม่ให้ปุ่มดีดกลับเป็น OFF เอง
+  // เรียกฟังก์ชันวาด UI เพียงรอบเดียวเมื่อได้ข้อมูลครบถ้วน ป้องกันการรีเซ็ตกลับเป็น OFF
   renderDevices(latestStatusMap);
 }
 
@@ -187,7 +187,6 @@ async function loadSchedules() {
   renderScheduleList();
 }
 
-// 2. ปรับให้สร้างปุ่มโดยใส่สถานะที่ดึงมาจากฐานข้อมูลทันที ไม่ Hardcode เป็น "off" อีกต่อไป
 function renderDevices(latestStatusMap = {}) {
   const area = document.getElementById("deviceArea");
   area.innerHTML = `
@@ -208,7 +207,7 @@ function renderDevices(latestStatusMap = {}) {
     slot.classList.remove("empty");
     slot.dataset.deviceId = d.id;
 
-    // เช็กสถานะจากตาราง Map ที่ส่งมา
+    // ตรวจสอบข้อมูลจากแผนผังอย่างละเอียดก่อนเรนเดอร์คลาสปุ่มลงบนหน้าจอ
     const isDeviceOn = latestStatusMap[d.id] === true;
     const btnClass = isDeviceOn ? "device on" : "device off";
     const btnText = isDeviceOn ? "ON" : "OFF";
