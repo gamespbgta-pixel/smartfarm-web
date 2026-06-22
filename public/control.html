@@ -136,6 +136,7 @@ async function checkAuthAndLoad() {
   connectWS();
 }
 
+// ปรับปรุงการโหลดสถานะอุปกรณ์เพื่อป้องกันปุ่มเปลี่ยนคืนค่าเก่า
 async function loadDevices() {
   const { data, error } = await supabase
     .from("devices")
@@ -152,13 +153,13 @@ async function loadDevices() {
       .from("device_status_logs")
       .select("status")
       .eq("device_id", d.id)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false }) // ดึงประวัติที่ใหม่ที่สุดมา 1 ตัว
       .limit(1);
 
-    if (logData && logData.length > 0) {
-      const lastStatus = logData[0].status;
-      const btn = document.getElementById("btn-" + d.id);
-      if (btn) {
+    const btn = document.getElementById("btn-" + d.id);
+    if (btn) {
+      if (logData && logData.length > 0) {
+        const lastStatus = logData[0].status;
         if (lastStatus === true) {
           btn.className = "device on";
           btn.innerHTML = "ON";
@@ -166,6 +167,10 @@ async function loadDevices() {
           btn.className = "device off";
           btn.innerHTML = "OFF";
         }
+      } else {
+        // หากไม่มี Log ใดๆ ในระบบเลย ให้ปุ่มเริ่มต้นที่สถานะปิด (OFF) เสมอ
+        btn.className = "device off";
+        btn.innerHTML = "OFF";
       }
     }
   }
@@ -319,7 +324,6 @@ function startScheduler() {
   }, 1000);
 }
 
-// ฟังก์ชันเสียงเวอร์ชันปรับปรุง (แก้ปัญหาเปิดไม่ได้ ปิดได้ตัวเดียว)
 window.startVoice = async () => {
   const voiceBtn = document.getElementById("voiceButton");
   const voiceText = document.getElementById("voiceText");
@@ -360,25 +364,22 @@ window.startVoice = async () => {
   };
 
   recognition.onresult = async (event) => {
-    // 1. ทำความสะอาดข้อความเสียงที่จับได้ ล้างช่องว่างทิ้งให้หมด
     const text = event.results[0][0].transcript.trim().toLowerCase();
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
 
     let matched = false;
     for (const d of devices) {
-      // 2. เคลียร์ช่องว่างข้อความที่อยู่ในฐานข้อมูลออกให้สะอาด 
       const cleanOnKey = d.on_key.trim().toLowerCase();
       const cleanOffKey = d.off_key.trim().toLowerCase();
 
-      // 3. ใช้การเช็กแบบตรงตัว (Exact Match) แทน .includes() ป้องกันปัญหาวิ่งชนกัน
       if (text === cleanOnKey) {
         await setDeviceState(d.id, d.pin, "on");
         matched = true;
-        break; // เจอคำสั่งเปิดแล้วให้หลุดออกจากลูปทันที ป้องกันโดนคำสั่งปิดทำงานทับ
+        break; 
       } else if (text === cleanOffKey) {
         await setDeviceState(d.id, d.pin, "off");
         matched = true;
-        break; // เจอคำสั่งปิดแล้วให้หลุดออกจากลูปทันที
+        break; 
       }
     }
     
