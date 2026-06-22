@@ -231,7 +231,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let historyData = [];
 
-// ตั้งค่าวันที่เริ่มต้นในปฏิทินให้เป็น "วันนี้" ตามเวลาท้องถิ่น
+// ตั้งค่าวันที่เริ่มต้นในปฏิทินให้เป็น "วันนี้"
 const datePicker = document.getElementById("datePicker");
 const today = new Date();
 const yyyy = today.getFullYear();
@@ -241,13 +241,12 @@ datePicker.value = `${yyyy}-${mm}-${dd}`;
 
 // ปุ่มกลับหน้าควบคุม
 document.getElementById("backBtn").addEventListener("click", () => {
-    location.href = "control.html"; // แก้จาก /control.html เผื่อโฟลเดอร์เปลี่ยน
+    location.href = "control.html";
 });
 
-// โหลดข้อมูลทั้งหมดจากฐานข้อมูลมารอไว้
+// โหลดข้อมูลทั้งหมดมารอไว้
 async function loadHistory() {
-    // หมายเหตุ: โค้ดเดิมใช้ changed_at แต่ระบบควบคุมของคุณบันทึกเป็น created_at ในตารางประวัติ 
-    // จึงปรับให้รองรับโครงสร้างที่ถูกต้อง
+    // แก้ไขเพื่อหลีกเลี่ยง Error 400: ดึงข้อมูลแบบปกติแล้วจัดเรียงผ่าน JavaScript แทนเพื่อความเสถียร
     const { data, error } = await supabase
         .from("device_status_logs")
         .select(`
@@ -255,22 +254,24 @@ async function loadHistory() {
             status,
             created_at,
             devices(name)
-        `)
-        .order("created_at", { ascending: false });
+        `);
 
     if (error) {
-        console.error(error);
+        console.error("Supabase Error:", error);
         alert("เกิดข้อผิดพลาดในการดึงข้อมูล: " + error.message);
         return;
     }
 
+    // เรียงลำดับจากล่าสุดไปหาเก่าสุดด้วย JavaScript ฝั่ง Client
     historyData = data || [];
-    filterAndRender(); // ทำการกรองตามวันที่ตั้งต้นทันที
+    historyData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    filterAndRender(); // ทำการกรองข้อมูลตามวันปัจจุบันทันที
 }
 
-// ฟังก์ชันหลักในการกรองข้อมูลตาม "ปฏิทิน" และ "คำค้นหา" พร้อมกัน
+// ฟังก์ชันกรองข้อมูลผ่านปฏิทิน
 function filterAndRender() {
-    const selectedDate = datePicker.value; // ค่าที่ได้จะเป็นฟอร์แมต "YYYY-MM-DD"
+    const selectedDate = datePicker.value; // ฟอร์แมต "YYYY-MM-DD"
     const keyword = document.getElementById("searchInput").value.toLowerCase();
 
     if (!selectedDate) {
@@ -280,17 +281,19 @@ function filterAndRender() {
     }
 
     const filtered = historyData.filter(item => {
-        // แปลงเวลาจากฐานข้อมูล (UTC) ให้เป็นวันที่ของท้องถิ่นไทย (YYYY-MM-DD)
+        if (!item.created_at) return false;
+        
+        // แปลงเวลาจากฐานข้อมูลให้เป็นค่าวันที่ระบบท้องถิ่น (YYYY-MM-DD)
         const logDate = new Date(item.created_at);
         const itemYear = logDate.getFullYear();
         const itemMonth = String(logDate.getMonth() + 1).padStart(2, '0');
         const itemDay = String(logDate.getDate()).padStart(2, '0');
         const itemDateString = `${itemYear}-${itemMonth}-${itemDay}`;
 
-        // เช็กว่าตรงกับวันที่เลือกในปฏิทินหรือไม่
+        // ตรวจสอบเงื่อนไขวันที่เลือกในปฏิทิน
         const matchesDate = (itemDateString === selectedDate);
 
-        // เช็กคำค้นหาเพิ่มเติม (ชื่ออุปกรณ์ หรือสถานะ เปิด/ปิด)
+        // ตรวจสอบคำค้นหาเพิ่มเติม
         const name = (item.devices?.name || "").toLowerCase();
         const statusText = item.status ? "เปิด" : "ปิด";
         const matchesKeyword = name.includes(keyword) || statusText.includes(keyword);
@@ -302,7 +305,7 @@ function filterAndRender() {
     updateSummary(filtered.length);
 }
 
-// แสดงผลแถวข้อมูลในตาราง HTML
+// วาดข้อมูลลงบนตาราง HTML
 function renderTable(data) {
     const table = document.getElementById("historyTable");
     table.innerHTML = "";
@@ -329,18 +332,15 @@ function renderTable(data) {
     });
 }
 
-// อัปเดตข้อความสรุปจำนวนรายการ
 function updateSummary(count) {
     document.getElementById("dateSummary").textContent = `พบข้อมูลทั้งหมด ${count} รายการ`;
 }
 
-// ตรวจจับการเปลี่ยนวันที่ในปฏิทิน -> ให้กรองข้อมูลใหม่ทันที
+// ผูกเหตุการณ์เมื่อผู้ใช้เลือกเปลี่ยนวันที่บนปฏิทิน
 datePicker.addEventListener("change", filterAndRender);
-
-// ตรวจจับการพิมพ์ค้นหาเพิ่มเติม
 document.getElementById("searchInput").addEventListener("input", filterAndRender);
 
-// เริ่มทำงานเมื่อเปิดหน้าเว็บ
+// รันฟังก์ชันเพื่อเริ่มระบบ
 loadHistory();
 </script>
 
