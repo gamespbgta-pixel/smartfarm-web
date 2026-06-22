@@ -24,7 +24,7 @@ body{ margin:0; font-family:'Kanit',sans-serif; background:linear-gradient(135de
 .device.on{ background:#2ecc71; color:white; }
 .device.off{ background:#e74c3c; color:white; }
 .deleteBtn{ position:absolute; top:10px; right:10px; border:none; background:red; color:white; border-radius:50%; width:30px; height:30px; cursor:pointer; }
-input,select{ width:100%; padding:12px; margin-top:10px; border:1px solid #ddd; border-radius:10px; font-family:'Kanit',sans-serif; font-size:16px; }
+input,select{ width:100%; padding:12px; margin-top:10px; border:1px solid #ddd; border-radius:10px; font-family:'Kanit',sans-serif; font-size:16px; box-sizing:border-box; }
 button.action{ width:100%; background:#27ae60; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; margin-top:12px; font-family:'Kanit',sans-serif; font-size:15px; }
 .voiceBtn{ background:#3498db !important; }
 .voiceBtn.listening{ background:#e67e22 !important; animation: pulse 1.5s infinite; }
@@ -35,29 +35,23 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 #voiceText{ margin-top:8px; font-size:13px; color:#555; font-weight:600; }
 #schedulerStatus{ position:fixed; bottom:15px; right:15px; background:#27ae60; color:white; padding:6px 12px; border-radius:20px; font-size:12px; font-family:'Kanit',sans-serif; opacity:0; transition:opacity 0.5s; pointer-events:none; z-index:9999; }
 
-/* โซนแก้ไขจัดระเบียบช่องตั้งเวลาสำหรับ iPad ไม่ให้ทะลุและซ้อนทับขอบ */
-.time-container { 
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap: 12px; 
-  margin-top: 10px; 
-  width: 100%;
+/* โครงสร้างใหม่: แยกแถวแนวตั้งอย่างเด็ดขาดเพื่อไม่ให้มีโอกาสเบียดกันล้นจอ */
+.schedule-form-group {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
 }
-.time-box { 
-  display: flex; 
-  flex-direction: column; 
+.schedule-form-group label {
+  font-size: 15px;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 2px;
 }
-.time-box label { 
-  font-size: 14px; 
-  color: #555; 
+.schedule-form-group input[type="time"] {
+  width: 100% !important;
+  max-width: 100% !important;
   margin-top: 5px;
-  font-weight: 600; 
-}
-/* คุมไม่ให้ input type="time" ขยายตัวเกินขนาดกล่องของตัวเอง */
-.time-box input[type="time"] { 
-  width: 100% !important; 
-  max-width: 100% !important; 
-  box-sizing: border-box !important;
+  -webkit-appearance: none; /* ลบสไตล์แปลกๆ ของ iOS */
 }
 
 @media(max-width:900px){
@@ -116,15 +110,14 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
       <option value="">เลือกอุปกรณ์</option>
     </select>
     
-    <div class="time-container">
-      <div class="time-box">
-        <label>เวลาเปิด</label>
-        <input type="time" id="timeOn">
-      </div>
-      <div class="time-box">
-        <label>เวลาปิด</label>
-        <input type="time" id="timeOff">
-      </div>
+    <div class="schedule-form-group">
+      <label>เวลาเปิด</label>
+      <input type="time" id="timeOn">
+    </div>
+    
+    <div class="schedule-form-group">
+      <label>เวลาปิด</label>
+      <input type="time" id="timeOff">
     </div>
     
     <button class="action" onclick="saveSchedule()">บันทึกเวลา</button>
@@ -133,7 +126,7 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
   </div>
 
   <div class="card">
-    <h3>ควบคุมด้วยเสียง</h3>
+    <h3>ควบด้วยเสียง</h3>
     <button class="action voiceBtn" id="voiceButton" onclick="startVoice()">🎤 เริ่มฟังคำสั่ง</button>
     <div id="voiceText"></div>
   </div>
