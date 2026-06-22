@@ -237,12 +237,10 @@ function getCurrentTime() {
          now.getMinutes().toString().padStart(2, '0');
 }
 
-// ฟังก์ชันหลัก: เปลี่ยนสีปุ่มบนจอทันที + บันทึก Supabase + ส่ง Socket พร้อมกัน
 async function setDeviceState(id, pin, targetState) {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
 
-  // เปลี่ยนสถานะและ UI ทันทีไม่ต้องรอเซิฟเวอร์เพื่อความลื่นไหลบนมือถือ
   if (targetState === "on") {
     btn.className = "device on";
     btn.innerHTML = "ON";
@@ -321,7 +319,7 @@ function startScheduler() {
   }, 1000);
 }
 
-// แก้ไขฟังก์ชันคำสั่งเสียงให้เชื่อมโยงกับปุ่มและเคลียร์ช่องว่างเรียบร้อย
+// ฟังก์ชันเสียงเวอร์ชันปรับปรุง (แก้ปัญหาเปิดไม่ได้ ปิดได้ตัวเดียว)
 window.startVoice = async () => {
   const voiceBtn = document.getElementById("voiceButton");
   const voiceText = document.getElementById("voiceText");
@@ -343,7 +341,7 @@ window.startVoice = async () => {
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
-    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟน";
+    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟนในโทรศัพท์";
     return;
   }
 
@@ -358,36 +356,39 @@ window.startVoice = async () => {
       voiceBtn.classList.add("listening");
       voiceBtn.innerHTML = "🔊 กำลังฟังคำสั่งเสียง...";
     }
-    if (voiceText) voiceText.innerHTML = "พูดคำสั่งเปิด/ปิดอุปกรณ์ได้เลย...";
+    if (voiceText) voiceText.innerHTML = "พูดคำสั่งเปิด/ปิดอุปกรณ์ของคุณได้เลย";
   };
 
   recognition.onresult = async (event) => {
-    // ลบช่องว่างหัวท้ายออกเพื่อป้องกันการเปรียบเทียบค่าผิดพลาด
+    // 1. ทำความสะอาดข้อความเสียงที่จับได้ ล้างช่องว่างทิ้งให้หมด
     const text = event.results[0][0].transcript.trim().toLowerCase();
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
 
     let matched = false;
     for (const d of devices) {
-      // ทำความสะอาดคีย์เวิร์ดเปิด/ปิดจากดาต้าเบสป้องกันช่องว่างหลุดมาด้วย
+      // 2. เคลียร์ช่องว่างข้อความที่อยู่ในฐานข้อมูลออกให้สะอาด 
       const cleanOnKey = d.on_key.trim().toLowerCase();
       const cleanOffKey = d.off_key.trim().toLowerCase();
 
-      if (text.includes(cleanOnKey)) {
+      // 3. ใช้การเช็กแบบตรงตัว (Exact Match) แทน .includes() ป้องกันปัญหาวิ่งชนกัน
+      if (text === cleanOnKey) {
         await setDeviceState(d.id, d.pin, "on");
         matched = true;
-      }
-      if (text.includes(cleanOffKey)) {
+        break; // เจอคำสั่งเปิดแล้วให้หลุดออกจากลูปทันที ป้องกันโดนคำสั่งปิดทำงานทับ
+      } else if (text === cleanOffKey) {
         await setDeviceState(d.id, d.pin, "off");
         matched = true;
+        break; // เจอคำสั่งปิดแล้วให้หลุดออกจากลูปทันที
       }
     }
     
     if(!matched && voiceText) {
-      voiceText.innerHTML = `ได้ยิน: "${text}" (คำสั่งไม่ตรงกับชื่อที่ตั้งไว้)`;
+      voiceText.innerHTML = `ได้ยิน: "${text}" (คำสั่งไม่ตรงกับอุปกรณ์ใดๆ)`;
     }
   };
 
   recognition.onerror = (event) => {
+    console.error(event.error);
     if (voiceText) voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณากดลองอีกครั้ง";
   };
 
