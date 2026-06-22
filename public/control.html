@@ -332,28 +332,8 @@ window.addDevice = async () => {
 
 // เปิด/ปิดอุปกรณ์
 window.toggleDevice = async (id, pin, btn) => {
-  let state;
-  if (btn.classList.contains("on")) {
-    state = "off";
-    btn.className = "device off";
-    btn.innerHTML = "OFF";
-  } else {
-    state = "on";
-    btn.className = "device on";
-    btn.innerHTML = "ON";
-  }
-
-  // ส่งคำสั่งผ่าน WebSocket
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: "control", device: pin, status: state }));
-  }
-
-  // บันทึกประวัติ
-  const { error } = await supabase.from("device_status_logs").insert([{
-    device_id: id,
-    status: state === "on"
-  }]);
-  if (error) console.error("บันทึกประวัติไม่สำเร็จ", error);
+  const targetState = btn.classList.contains("on") ? "off" : "on";
+  await setDeviceState(id, pin, targetState);
 };
 
 // ลบอุปกรณ์
