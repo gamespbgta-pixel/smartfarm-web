@@ -136,7 +136,6 @@ async function checkAuthAndLoad() {
   connectWS();
 }
 
-// จุดแก้ไขหลัก: ดึงข้อมูลให้เสร็จรวดเดียวก่อน แล้วสั่งวาดหน้าจอเพียงรอบเดียว
 async function loadDevices() {
   const { data: devicesData, error: devError } = await supabase
     .from("devices")
@@ -152,26 +151,23 @@ async function loadDevices() {
     return;
   }
 
-  // ดึงค่าสถานะล่าสุดรายตัวแบบรันพร้อมกัน (Parallel)
   const latestStatusMap = {};
   const logPromises = devices.map(async (d) => {
-  const { data } = await supabase
-  .from("device_status_logs")
-  .select("status")
-  .eq("device_id", d.id)
-  .order("changed_at", { ascending: false })
-  .limit(1);
+    const { data } = await supabase
+      .from("device_status_logs")
+      .select("status")
+      .eq("device_id", d.id)
+      .order("changed_at", { ascending: false })
+      .limit(1);
     
     if (data && data.length > 0) {
       latestStatusMap[d.id] = data[0].status;
     } else {
-      latestStatusMap[d.id] = false; // ค่าตั้งต้นถ้าไม่เคยมีประวัติการกดเปิดเลย
+      latestStatusMap[d.id] = false;
     }
   });
 
   await Promise.all(logPromises);
-
-  // เรียกฟังก์ชันวาด UI เพียงรอบเดียวเมื่อได้ข้อมูลครบถ้วน ป้องกันการรีเซ็ตกลับเป็น OFF
   renderDevices(latestStatusMap);
 }
 
@@ -207,7 +203,6 @@ function renderDevices(latestStatusMap = {}) {
     slot.classList.remove("empty");
     slot.dataset.deviceId = d.id;
 
-    // ตรวจสอบข้อมูลจากแผนผังอย่างละเอียดก่อนเรนเดอร์คลาสปุ่มลงบนหน้าจอ
     const isDeviceOn = latestStatusMap[d.id] === true;
     const btnClass = isDeviceOn ? "device on" : "device off";
     const btnText = isDeviceOn ? "ON" : "OFF";
@@ -329,6 +324,7 @@ function startScheduler() {
   }, 1000);
 }
 
+// === ฟังก์ชันควบด้วยเสียงที่ปรับปรุงแก้ไขเพื่อ iPhone (iOS) ===
 window.startVoice = async () => {
   const voiceBtn = document.getElementById("voiceButton");
   const voiceText = document.getElementById("voiceText");
@@ -343,15 +339,15 @@ window.startVoice = async () => {
     return;
   }
 
-  if (recognition) {
-    try { recognition.stop(); } catch(e){}
-  }
-
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
-    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟนในโทรศัพท์";
+    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟนในตั้งค่าโทรศัพท์";
     return;
+  }
+
+  if (recognition) {
+    try { recognition.abort(); } catch(e){}
   }
 
   recognition = new SpeechRecognition();
@@ -369,6 +365,8 @@ window.startVoice = async () => {
   };
 
   recognition.onresult = async (event) => {
+    if (!event.results || event.results.length === 0) return;
+    
     const text = event.results[0][0].transcript.trim().toLowerCase();
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
 
@@ -394,8 +392,12 @@ window.startVoice = async () => {
   };
 
   recognition.onerror = (event) => {
-    console.error(event.error);
-    if (voiceText) voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณากดลองอีกครั้ง";
+    console.error("Speech error:", event.error);
+    if (event.error === 'not-allowed') {
+      if (voiceText) voiceText.innerHTML = "❌ ไม่ได้รับอนุญาตให้ใช้ไมค์ (เช็คการตั้งค่าแอป/เบราว์เซอร์)";
+    } else {
+      if (voiceText) voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณากดลองอีกครั้ง";
+    }
   };
 
   recognition.onend = () => {
@@ -405,7 +407,11 @@ window.startVoice = async () => {
     }
   };
 
-  recognition.start();
+  try {
+    recognition.start();
+  } catch(e) {
+    console.error(e);
+  }
 };
 
 window.addDevice = async () => {
