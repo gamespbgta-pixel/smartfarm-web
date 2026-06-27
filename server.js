@@ -9,8 +9,8 @@ const port = process.env.PORT || 3000;
 
 // ตั้งค่า Supabase (ใช้ Service Role Key เพื่อสิทธิ์ในการเขียนข้อมูล)
 const supabase = createClient(
-  '', 
-  'YOUR_SUPABASE_SERVICE_ROLE_KEY'
+  'https://zweosffxlaghnrvimdwx.supabase.co', 
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE'
 );
 
 app.use(express.static(path.join(__dirname, 'public')));
