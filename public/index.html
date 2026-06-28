@@ -2,10 +2,43 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Farm - ระบบสมาชิก</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        /* ... สไตล์เดิมของคุณ ... */
-        .forgot-link { text-align: center; margin-top: 10px; font-size: 13px; color: #777; cursor: pointer; }
+        body { 
+            height: 100vh; display: flex; justify-content: center; align-items: center; 
+            background: linear-gradient(135deg, #4CAF50, #2E7D32); 
+            font-family: 'Kanit', sans-serif; margin: 0;
+        }
+        .container-box { 
+            width: 90%; max-width: 380px; background: rgba(255, 255, 255, 0.95); 
+            padding: 40px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+        .logo { font-size: 50px; text-align: center; margin-bottom: 10px; }
+        .title { font-size: 26px; font-weight: 600; margin-bottom: 25px; color: #1B5E20; text-align: center; }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; color: #444; }
+        .input-group input { 
+            width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px; 
+            font-size: 16px; outline: none; box-sizing: border-box; transition: 0.3s;
+        }
+        .input-group input:focus { border-color: #4CAF50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.2); }
+        .btn-action { 
+            width: 100%; padding: 14px; border: none; border-radius: 12px; 
+            background: #2E7D32; color: white; font-size: 18px; font-weight: 600; 
+            cursor: pointer; transition: 0.3s; 
+        }
+        .btn-action:hover { background: #1B5E20; transform: translateY(-2px); }
+        .message { text-align: center; margin-top: 20px; font-size: 14px; min-height: 20px; }
+        .error-text { color: #d32f2f; }
+        .success-text { color: #388e3c; }
+        .toggle-link, .forgot-link { 
+            text-align: center; margin-top: 15px; font-size: 14px; color: #555; 
+            cursor: pointer; transition: 0.3s; 
+        }
+        .toggle-link:hover, .forgot-link:hover { color: #2E7D32; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -33,9 +66,11 @@
 
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+    
+    // ใส่ค่าของคุณที่นี่
     const supabase = createClient("https://zweosffxlaghnrvimdwx.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE");
 
-    let mode = 'login'; // login, signup, forgot
+    let mode = 'login'; 
 
     const formTitle = document.getElementById("form-title");
     const btnSubmit = document.getElementById("btn-submit");
@@ -43,11 +78,10 @@
     const forgotLink = document.getElementById("forgot-password-link");
     const passwordGroup = document.getElementById("password-group");
     const messageDisplay = document.getElementById("message-display");
+    const authForm = document.getElementById("auth-form");
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
-    const authForm = document.getElementById("auth-form");
 
-    // ฟังก์ชันสลับโหมด
     function setMode(newMode) {
         mode = newMode;
         messageDisplay.innerText = "";
@@ -55,19 +89,19 @@
             formTitle.innerText = "Smart Farm Login";
             btnSubmit.innerText = "เข้าสู่ระบบ";
             passwordGroup.style.display = "block";
-            toggleView.style.display = "block";
+            toggleView.innerText = "ยังไม่มีบัญชี? สมัครสมาชิกที่นี่";
             forgotLink.style.display = "block";
         } else if (mode === 'signup') {
             formTitle.innerText = "สมัครสมาชิกฟาร์ม";
             btnSubmit.innerText = "ลงทะเบียน";
             passwordGroup.style.display = "block";
-            toggleView.style.display = "block";
+            toggleView.innerText = "มีบัญชีอยู่แล้ว? เข้าสู่ระบบที่นี่";
             forgotLink.style.display = "none";
         } else {
             formTitle.innerText = "กู้คืนรหัสผ่าน";
             btnSubmit.innerText = "ส่งอีเมลยืนยัน";
             passwordGroup.style.display = "none";
-            toggleView.style.display = "block";
+            toggleView.innerText = "กลับไปหน้าเข้าสู่ระบบ";
             forgotLink.style.display = "none";
         }
     }
@@ -78,16 +112,29 @@
     authForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const email = emailInput.value.trim();
-        
-        if (mode === 'forgot') {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + '/reset-password.html', // หน้าที่คุณต้องสร้างเพื่อกรอกรหัสใหม่
-            });
-            messageDisplay.innerText = error ? "ผิดพลาด: " + error.message : "ส่งอีเมลรีเซ็ตรหัสผ่านแล้ว กรุณาตรวจสอบกล่องจดหมาย";
-            messageDisplay.className = error ? "message error-text" : "message success-text";
+        const password = passwordInput.value;
+        messageDisplay.className = "message";
+
+        if (mode === 'login') {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                messageDisplay.innerText = "เข้าสู่ระบบผิดพลาด: " + error.message;
+                messageDisplay.classList.add("error-text");
+            } else {
+                messageDisplay.innerText = "สำเร็จ! กำลังเข้าสู่ระบบ...";
+                messageDisplay.classList.add("success-text");
+                window.location.href = "control.html";
+            }
+        } else if (mode === 'signup') {
+            const { error } = await supabase.auth.signUp({ email, password });
+            messageDisplay.innerText = error ? "ลงทะเบียนพลาด: " + error.message : "สมัครสมาชิกสำเร็จ! โปรดยืนยันอีเมล";
+            messageDisplay.classList.add(error ? "error-text" : "success-text");
         } else {
-            // โค้ดเดิมสำหรับ Login/Signup...
-            // (ใส่ logic เดิมของคุณที่นี่)
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/reset-password.html',
+            });
+            messageDisplay.innerText = error ? "ผิดพลาด: " + error.message : "ส่งอีเมลยืนยันแล้ว";
+            messageDisplay.classList.add(error ? "error-text" : "success-text");
         }
     });
 </script>
