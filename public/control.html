@@ -126,7 +126,7 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
   </div>
 
   <div class="card">
-    <h3>ควบด้วยเสียง</h3>
+    <h3>ควบคุมด้วยเสียง</h3>
     <button class="action voiceBtn" id="voiceButton" onclick="startVoice()">🎤 เริ่มฟังคำสั่ง</button>
     <div id="voiceText"></div>
   </div>
@@ -502,7 +502,45 @@ window.deleteSchedule = async (deviceId) => {
 
 function connectWS() {
   ws = new WebSocket("wss://smartfarm-web.onrender.com");
-  ws.onopen = () => { ws.send(JSON.stringify({ type: "web" })); };
+  
+  ws.onopen = () => { 
+    console.log("เชื่อมต่อ WebSocket สำเร็จ");
+    ws.send(JSON.stringify({ type: "web" })); 
+  };
+  
+  // เพิ่มการตรวจรับข้อความจาก WebSocket เพื่ออัปเดตสถานะปุ่มสี แดง/เขียว ทันทีที่บอร์ดสั่งงาน
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === "status") {
+        devices.forEach(d => {
+          const btn = document.getElementById("btn-" + d.id);
+          if (!btn) return;
+
+          let isDeviceOn = false;
+          // ตรวจสอบความถูกต้องตามหมายเลข GPIO Pin ที่จับคู่ไว้
+          if (d.pin == "16") isDeviceOn = data.light;
+          else if (d.pin == "5")  isDeviceOn = data.fan1;
+          else if (d.pin == "17") isDeviceOn = data.fan2;
+          else if (d.pin == "18") isDeviceOn = data.pump1;
+          else if (d.pin == "19") isDeviceOn = data.pump2;
+          else if (d.pin == "21") isDeviceOn = data.motor;
+          else return; // ถ้าพินไม่ตรงกับตัวแปรมาตรฐานข้ามไปก่อน
+
+          if (isDeviceOn) {
+            btn.className = "device on";
+            btn.innerHTML = "ON";
+          } else {
+            btn.className = "device off";
+            btn.innerHTML = "OFF";
+          }
+        });
+      }
+    } catch (e) {
+      console.error("WebSocket ข้อความผิดพลาด:", e);
+    }
+  };
+  
   ws.onclose = () => { setTimeout(connectWS, 5000); };
 }
 
@@ -513,6 +551,10 @@ window.logout = async () => {
 };
 
 window.goPage2 = () => { location.href = "history.html"; };
+
+// ลงทะเบียนฟังก์ชันเข้าสู่สโคปของ window เพื่อให้ปุ่ม HTML เรียกใช้งานได้ในสไตล์ module
+window.logout = logout;
+window.goPage2 = goPage2;
 
 checkAuthAndLoad();
 </script>
