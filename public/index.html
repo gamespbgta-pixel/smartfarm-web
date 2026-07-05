@@ -82,30 +82,41 @@
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
 
-    function setMode(newMode) {
-        mode = newMode;
-        messageDisplay.innerText = "";
-        if (mode === 'login') {
-            formTitle.innerText = "Smart Farm Login";
-            btnSubmit.innerText = "เข้าสู่ระบบ";
-            passwordGroup.style.display = "block";
-            toggleView.innerText = "ยังไม่มีบัญชี? สมัครสมาชิกที่นี่";
-            forgotLink.style.display = "block";
-        } else if (mode === 'signup') {
-            formTitle.innerText = "สมัครสมาชิกฟาร์ม";
-            btnSubmit.innerText = "ลงทะเบียน";
-            passwordGroup.style.display = "block";
-            toggleView.innerText = "มีบัญชีอยู่แล้ว? เข้าสู่ระบบที่นี่";
-            forgotLink.style.display = "none";
-        } else {
-            formTitle.innerText = "กู้คืนรหัสผ่าน";
-            btnSubmit.innerText = "ส่งอีเมลยืนยัน";
-            passwordGroup.style.display = "none";
-            toggleView.innerText = "กลับไปหน้าเข้าสู่ระบบ";
-            forgotLink.style.display = "none";
-        }
-    }
+  function setMode(newMode) {
+    mode = newMode;
+    messageDisplay.innerText = "";
 
+    if (mode === 'login') {
+        formTitle.innerText = "Smart Farm Login";
+        btnSubmit.innerText = "เข้าสู่ระบบ";
+
+        passwordGroup.style.display = "block";
+        passwordInput.required = true;   // เพิ่มบรรทัดนี้
+
+        toggleView.innerText = "ยังไม่มีบัญชี? สมัครสมาชิกที่นี่";
+        forgotLink.style.display = "block";
+
+    } else if (mode === 'signup') {
+        formTitle.innerText = "สมัครสมาชิกฟาร์ม";
+        btnSubmit.innerText = "ลงทะเบียน";
+
+        passwordGroup.style.display = "block";
+        passwordInput.required = true;   // เพิ่มบรรทัดนี้
+
+        toggleView.innerText = "มีบัญชีอยู่แล้ว? เข้าสู่ระบบที่นี่";
+        forgotLink.style.display = "none";
+
+    } else {
+        formTitle.innerText = "กู้คืนรหัสผ่าน";
+        btnSubmit.innerText = "ส่งอีเมลยืนยัน";
+
+        passwordGroup.style.display = "none";
+        passwordInput.required = false;  // ⭐ เพิ่มบรรทัดนี้
+
+        toggleView.innerText = "กลับไปหน้าเข้าสู่ระบบ";
+        forgotLink.style.display = "none";
+    }
+}
     toggleView.addEventListener("click", () => setMode(mode === 'login' ? 'signup' : 'login'));
     forgotLink.addEventListener("click", () => setMode('forgot'));
 
