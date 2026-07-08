@@ -28,6 +28,13 @@ h2{ margin-top:0; color:#2c3e50; border-bottom:2px solid #e8f5e9; padding-bottom
 .badge-realtime { background:#e74c3c; color:white; animation: blink 1.5s infinite; }
 .badge-history { background:#7f8c8d; color:white; }
 @keyframes blink { 0% {opacity:1;} 50% {opacity:0.4;} 100% {opacity:1;} }
+
+/* โซนที่จัดสัดส่วนเพิ่มเข้ามาสำหรับหน้าจอกราฟวงกลมคู่ */
+.pie-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+.pie-card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,.1); text-align: center; }
+.pie-container { position: relative; width: 160px; height: 160px; margin: 0 auto; }
+.pie-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 26px; font-weight: bold; }
+
 .chart-container { position:relative; height:350px; width:100%; margin-top:15px; }
 .no-data { text-align:center; color:#999; padding:40px; font-size:16px; }
 .searchBox { margin-bottom:20px; }
@@ -40,7 +47,11 @@ tr:hover { background:#f5fff7; }
 .on { color:#2ecc71; font-weight:bold; }
 .off { color:#e74c3c; font-weight:bold; }
 .empty { color:#999; padding:40px; font-size:18px; }
-@media(max-width:768px){ .top-bar, .calendar-section { flex-direction:column; align-items:stretch; } .backBtn { text-align:center; } }
+@media(max-width:768px){ 
+  .top-bar, .calendar-section { flex-direction:column; align-items:stretch; } 
+  .backBtn { text-align:center; } 
+  .pie-grid { grid-template-columns: 1fr; } /* ยุบกราฟวงกลมคู่เหลือแถวเดี่ยวเมื่อจอมือถือเล็ก */
+}
 </style>
 </head>
 <body>
@@ -63,8 +74,25 @@ tr:hover { background:#f5fff7; }
         </div>
     </div>
 
+    <div class="pie-grid" id="pieWrapper">
+        <div class="pie-card">
+            <h3 style="margin: 0 0 15px 0; color: #f39c12;">🌾 ระดับอาหารคงเหลือ</h3>
+            <div class="pie-container">
+                <canvas id="foodPieChart"></canvas>
+                <div id="foodPercentText" class="pie-text" style="color: #f39c12;">-%</div>
+            </div>
+        </div>
+        <div class="pie-card">
+            <h3 style="margin: 0 0 15px 0; color: #3498db;">💧 ระดับน้ำคงเหลือ</h3>
+            <div class="pie-container">
+                <canvas id="waterPieChart"></canvas>
+                <div id="waterPercentText" class="pie-text" style="color: #3498db;">-%</div>
+            </div>
+        </div>
+    </div>
+
     <div class="card">
-        <h2>📊 กราฟสรุปสภาพแวดล้อม (อุณหภูมิ, อาหาร, น้ำ)</h2>
+        <h2>📊 กราฟสรุปสภาพแวดล้อม (อุณหภูมิ)</h2>
         <div id="chartWrapper">
             <div class="chart-container">
                 <canvas id="farmChart"></canvas>
@@ -104,18 +132,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let historyData = [];
 let farmChart = null;
-let realtimeChannel = null; // ตัวแปรเก็บช่องสัญญาณดักฟัง
+let foodPieChart = null; // ตัวแปรเก็บกราฟวงกลมอาหาร
+let waterPieChart = null; // ตัวแปรเก็บกราฟวงกลมน้ำ
+let realtimeChannel = null; 
 
 const datePicker = document.getElementById("datePicker");
 const statusBadge = document.getElementById("statusBadge");
 
-// ดึงเวลาวันนี้ในฟอร์แมต "YYYY-MM-DD" ของฝั่ง Client Local 
-const todayStr = new Date().toLocaleDateString('sv'); // ฟอร์แมตสวีเดนจะได้ YYYY-MM-DD เป๊ะๆ
+const todayStr = new Date().toLocaleDateString('sv'); 
 datePicker.value = todayStr;
 
 document.getElementById("backBtn").addEventListener("click", () => { location.href = "control.html"; });
 
-// 1. ดึงข้อมูลประวัติตาราง
 async function loadHistory() {
     const { data, error } = await supabase.from("device_status_logs").select(`device_id, status, changed_at, devices(name)`);
     if (!error) {
@@ -125,12 +153,10 @@ async function loadHistory() {
     }
 }
 
-// 2. ดึงข้อมูลสถิติเซนเซอร์มาวาดกราฟ (แก้ไขเวอร์ชันรองรับเวลาไทย +07:00)
 async function loadMetrics() {
     const selectedDate = datePicker.value;
     if (!selectedDate) return;
 
-    // 💡 เปลี่ยนจาก .000Z เป็น +07:00 เพื่อให้ตรงกับเวลาที่ ESP32 บันทึกเข้า Supabase
     const startOfDay = `${selectedDate}T00:00:00+07:00`;
     const endOfDay = `${selectedDate}T23:59:59+07:00`;
 
@@ -148,45 +174,48 @@ async function loadMetrics() {
 
     if (!data || data.length === 0) {
         document.getElementById("chartWrapper").style.display = "none";
+        document.getElementById("pieWrapper").style.display = "none"; // ซ่อนกล่องวงกลมถ้าไม่มีข้อมูลวันนั้น
         document.getElementById("noDataMessage").style.display = "block";
         return;
     }
 
     document.getElementById("chartWrapper").style.display = "block";
-    document.getElementById("noDataMessage").style.none = "none";
+    document.getElementById("pieWrapper").style.display = "grid"; // เปิดแสดงกล่องวงกลมคู่ปกติ
+    document.getElementById("noDataMessage").style.display = "none";
 
-    // จัดการแปลงเวลาจากฐานข้อมูลมาแสดงเป็นเวลาไทยบนแกน X ของกราฟ
     const labels = data.map(item => new Date(item.recorded_at).toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' }));
     const tempData = data.map(item => item.temperature);
-    const waterData = data.map(item => item.water_level);
-    const feedData = data.map(item => item.food_level);
-
-    updateChart(labels, tempData, feedData, waterData);
+    
+    // ดึงเอาข้อมูลแถวล่าสุด (ตัวท้ายสุดของชุดข้อมูลวันที่เลือก) มาสตรีมวาดวงกลมเปอร์เซ็นต์
+    const latestRow = data[data.length - 1];
+    
+    // สั่งวาด/อัปเดตกราฟเส้นอุณหภูมิเดี่ยว
+    updateLineChart(labels, tempData);
+    
+    // สั่งวาด/อัปเดตกราฟวงกลมเปอร์เซ็นต์อาหารกับน้ำแยกก้อน
+    updatePieCharts(latestRow.food_level, latestRow.water_level);
 }
-// 3. ฟังก์ชันสลับโหมดควบคุมช่องสัญญาณ Realtime ⚙️
+
 function manageRealtimeSubscription() {
     const selectedDate = datePicker.value;
     const currentToday = new Date().toLocaleDateString('sv');
 
-    // ตรวจสอบเงื่อนไข: ถ้าวันที่เลือกตรงกับวันปัจจุบัน
     if (selectedDate === currentToday) {
         statusBadge.textContent = "🔴 LIVE เรียลไทม์";
         statusBadge.className = "badge badge-realtime";
 
-        // หากยังไม่ได้ต่อท่อฟัง ให้เปิดช่องสัญญาณดักฟังทันที
         if (!realtimeChannel) {
             realtimeChannel = supabase
                 .channel('farm-hybrid-channel')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sensor_logs' }, () => {
-                    loadMetrics(); // มีเซนเซอร์ใหม่ยิงเข้า -> วาดกราฟใหม่สดๆ
+                    loadMetrics(); 
                 })
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'device_status_logs' }, async () => {
-                    await loadHistory(); // มีคนกดสวิตช์เพิ่ม -> อัปเดตตารางประวัติทันที
+                    await loadHistory(); 
                 })
                 .subscribe();
         }
     } else {
-        // หากผู้ใช้หนีไปกดดูวันอื่น -> ปิดท่อรับข้อมูลเรียลไทม์ทิ้งเพื่อความประหยัดและแม่นยำ
         statusBadge.textContent = "📅 ข้อมูลย้อนหลัง";
         statusBadge.className = "badge badge-history";
         
@@ -197,7 +226,8 @@ function manageRealtimeSubscription() {
     }
 }
 
-function updateChart(labels, tempData, feedData, waterData) {
+// 💡 ปรับโค้ดฟังก์ชันกราฟเดิม ให้วาดเฉพาะ "อุณหภูมิ" เพื่อความสะอาดสายตา
+function updateLineChart(labels, tempData) {
     const ctx = document.getElementById('farmChart').getContext('2d');
     if (farmChart) { farmChart.destroy(); }
 
@@ -206,20 +236,76 @@ function updateChart(labels, tempData, feedData, waterData) {
         data: {
             labels: labels,
             datasets: [
-                { label: '🌡️ อุณหภูมิ (°C)', data: tempData, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.05)', yAxisID: 'yTemp', tension: 0.2 },
-                { label: '🌾 ระดับอาหาร (%)', data: feedData, borderColor: '#f39c12', backgroundColor: 'rgba(243, 156, 18, 0.05)', yAxisID: 'yPercent', tension: 0.2 },
-                { label: '💧 ระดับน้ำ (%)', data: waterData, borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.05)', yAxisID: 'yPercent', tension: 0.2 }
+                { label: '🌡️ อุณหภูมิ (°C)', data: tempData, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.05)', yAxisID: 'yTemp', tension: 0.2 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                yTemp: { type: 'linear', position: 'left', title: { display: true, text: 'อุณหภูมิ (°C)' } },
-                yPercent: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'ระดับอาหาร / น้ำ (%)' }, grid: { drawOnChartArea: false } }
+                yTemp: { type: 'linear', position: 'left', title: { display: true, text: 'อุณหภูมิ (°C)' } }
             }
         }
     });
+}
+
+// 💡 เพิ่มฟังก์ชันสำหรับวาดและบริหารจัดการอัปเดตแกนกราฟวงกลม (อาหาร/น้ำ) ล่าสุด
+function updatePieCharts(foodLevel, waterLevel) {
+    // ปิดล้อมจำกัดขอบเขตค่าเพื่อความชัวร์ไม่เกิน 0-100%
+    const foodVal = foodLevel < 0 ? 0 : (foodLevel > 100 ? 100 : foodLevel);
+    const waterVal = waterLevel < 0 ? 0 : (waterLevel > 100 ? 100 : waterLevel);
+
+    // ฝังข้อความตัวเลขกลางวงแหวน
+    document.getElementById("foodPercentText").textContent = foodVal + "%";
+    document.getElementById("waterPercentText").textContent = waterVal + "%";
+
+    // 1. วาด/อัปเดต วงแหวนอาหาร
+    if (foodPieChart) {
+        foodPieChart.data.datasets[0].data = [foodVal, 100 - foodVal];
+        foodPieChart.update();
+    } else {
+        const ctxFood = document.getElementById('foodPieChart').getContext('2d');
+        foodPieChart = new Chart(ctxFood, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [foodVal, 100 - foodVal],
+                    backgroundColor: ['#f39c12', '#f39c1220'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '80%',
+                plugins: { tooltip: { enabled: false }, legend: { display: false } },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+
+    // 2. วาด/อัปเดต วงแหวนน้ำ
+    if (waterPieChart) {
+        waterPieChart.data.datasets[0].data = [waterVal, 100 - waterVal];
+        waterPieChart.update();
+    } else {
+        const ctxWater = document.getElementById('waterPieChart').getContext('2d');
+        waterPieChart = new Chart(ctxWater, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [waterVal, 100 - waterVal],
+                    backgroundColor: ['#3498db', '#3498db20'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '80%',
+                plugins: { tooltip: { enabled: false }, legend: { display: false } },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
 }
 
 function filterAndRenderTable() {
@@ -259,11 +345,10 @@ function renderTable(data) {
     });
 }
 
-// เมื่อเปลี่ยนวันที่บนปฏิทินให้ทำงานแบบไฮบริด
 datePicker.addEventListener("change", () => {
     filterAndRenderTable();
     loadMetrics();
-    manageRealtimeSubscription(); // คำนวณว่าจะสับเปลี่ยนโหมดเรียลไทม์หรือปิดประวัติย้อนหลัง
+    manageRealtimeSubscription(); 
 });
 
 document.getElementById("searchInput").addEventListener("input", filterAndRenderTable);
@@ -271,7 +356,7 @@ document.getElementById("searchInput").addEventListener("input", filterAndRender
 async function init() {
     await loadHistory();
     await loadMetrics();
-    manageRealtimeSubscription(); // ตรวจเช็กโหมดตั้งต้นตอนเปิดเว็บบนวันล่าสุด
+    manageRealtimeSubscription(); 
 }
 init();
 </script>
