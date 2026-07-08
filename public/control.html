@@ -272,7 +272,6 @@ function renderDevices(latestStatusMap = {}) {
       ? `<span style="background:#3498db; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🤖 Auto</span>`
       : `<span style="background:#e67e22; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🕹 Manual</span>`;
 
-    // ปรับดีไซน์ปุ่มเมื่ออยู่ในโหมดภาพรวม Auto เพื่อสื่อว่ากดด้วยมือไม่ได้
     let disabledStyle = "";
     if (globalMode === "auto") {
       disabledStyle = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
@@ -333,7 +332,7 @@ async function setDeviceState(id, pin, targetState) {
   }
 
   if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: "control", device: pin, status: targetState }));
+    ws.send(JSON.stringify({ type: "control", device: pin.toString(), status: targetState }));
   }
 
   const { error } = await supabase.from("device_status_logs").insert([{
@@ -355,7 +354,6 @@ window.toggleDevice = async (id, pin) => {
 };
 
 async function checkSchedules() {
-  // บล็อกการทำงานของระบบตั้งเวลาในเว็บเด็ดขาด ถ้าเปิดโหมดภาพรวมแบบ Manual อยู่
   if (globalMode === "manual") return;
 
   const currentTime = getCurrentTime();
@@ -571,24 +569,17 @@ function updateGlobalModeUI() {
   const modeText = document.getElementById("globalModeText");
   
   if (globalMode === "auto") {
-    autoBtn.style.background = "#2ecc71"; 
-    manualBtn.style.background = "#7f8c8d"; 
-    modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (คุมตามสถิติฟาร์ม)";
+    if(autoBtn) autoBtn.style.background = "#2ecc71"; 
+    if(manualBtn) manualBtn.style.background = "#7f8c8d"; 
+    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (คุมตามสถิติฟาร์ม)";
   } else {
-    autoBtn.style.background = "#7f8c8d"; 
-    manualBtn.style.background = "#e67e22"; 
-    modeText.innerHTML = "โหมดภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
+    if(autoBtn) autoBtn.style.background = "#7f8c8d"; 
+    if(manualBtn) manualBtn.style.background = "#e67e22"; 
+    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
   }
 }
 
 window.changeGlobalMode = (mode) => {
-  // 💡 ปรับปรุงจุดสำคัญ: ตรวจสอบโหมดก่อนยิง ป้องกันลูปรัวของปุ่มกด
-  if (globalMode === mode && ws && ws.readyState === 1) {
-    // ส่งเผื่อไปครั้งเดียวเผื่อบอร์ดหลุดสาย แต่จะไม่ทำการสั่ง re-render ซ้ำซ้อน
-    ws.send(JSON.stringify({ type: "control", mode: mode }));
-    return;
-  }
-
   globalMode = mode;
   localStorage.setItem("globalMode", globalMode);
   updateGlobalModeUI();
@@ -597,12 +588,17 @@ window.changeGlobalMode = (mode) => {
     ws.send(JSON.stringify({ type: "control", mode: mode }));
   }
   
-  const latestStatusMap = {};
+  // อัปเดตสถานะปุ่มกดจาง/ชัดตามโหมดใหม่ทันที
   devices.forEach(d => {
     const btn = document.getElementById("btn-" + d.id);
-    if(btn) latestStatusMap[d.id] = btn.classList.contains("on");
+    if(btn) {
+      if (globalMode === "auto") {
+        btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
+      } else {
+        btn.style.cssText = "";
+      }
+    }
   });
-  renderDevices(latestStatusMap);
 
   showSchedulerStatus(`เปลี่ยนโหมดภาพรวมเป็น ${mode === 'auto' ? 'Auto' : 'Manual'}`);
 };
@@ -639,7 +635,6 @@ window.changeDeviceScheduleMode = (mode) => {
   
   deviceModes[deviceId] = mode;
   localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
-  
   updateDeviceScheduleUI();
   
   const latestStatusMap = {};
@@ -656,23 +651,21 @@ function connectWS() {
   ws.onopen = () => { 
     console.log("เชื่อมต่อ WebSocket สำเร็จ");
     ws.send(JSON.stringify({ type: "web" })); 
-    // ❌ เอาโค้ดที่แอบสั่งเปลี่ยนโหมดรัวๆ ตอนต่อสายตรงนี้ออกไปอย่างถาวร
   };
   
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
       
-      // 💡 รับค่าสถานะอุปกรณ์จริงสะท้อนกลับจากบอร์ด (UI เปลี่ยนสีตามความจริง)
       if (data.type === "status") {
-        
-        // อัปเดตสถานะตัวแปรโหมดของบอร์ดให้ตรงกันอย่างระมัดระวัง (แต่ห้ามยิงคำสั่งย้อนศรกลับไปหาบอร์ด)
+        // ซิงค์โหมดภาพรวมตามที่บอร์ดรายงานกลับมา
         if (data.mode && data.mode !== globalMode) {
-            globalMode = data.mode;
-            localStorage.setItem("globalMode", globalMode);
-            updateGlobalModeUI();
+          globalMode = data.mode;
+          localStorage.setItem("globalMode", globalMode);
+          updateGlobalModeUI();
         }
 
+        // ซิงค์สถานะรีเลย์ตามจริงที่บอร์ดรายงานมา โดยไม่ทำลาย Element บนหน้าเว็บ
         devices.forEach(d => {
           const btn = document.getElementById("btn-" + d.id);
           if (!btn) return;
@@ -685,6 +678,12 @@ function connectWS() {
           else if (d.pin == "19") isDeviceOn = data.pump2;
           else if (d.pin == "21") isDeviceOn = data.motor;
           else return; 
+
+          if (globalMode === "auto") {
+            btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
+          } else {
+            btn.style.cssText = "";
+          }
 
           if (isDeviceOn) {
             btn.className = "device on";
