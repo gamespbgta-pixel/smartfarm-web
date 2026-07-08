@@ -16,6 +16,11 @@ body{ margin:0; font-family:'Kanit',sans-serif; background:linear-gradient(135de
 .container{ max-width:1300px; margin:auto; padding:25px; }
 .main{ display:grid; grid-template-columns:2fr 1fr; gap:25px; }
 .card{ background:white; border-radius:20px; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,.1); margin-bottom:20px; }
+
+.card-header-flex { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px; }
+.card-header-flex h2 { margin:0; }
+.mode-control-group { display:flex; align-items:center; gap:10px; }
+
 .device-area{ display:grid; grid-template-columns:repeat(4,1fr); gap:15px; }
 .slot{ border:2px dashed #ccc; border-radius:20px; min-height:280px; text-align:center; padding:15px; position:relative; }
 .slot.empty{ display:flex; align-items:center; justify-content:center; color:#999; min-height:250px; }
@@ -56,6 +61,8 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 @media(max-width:900px){
   .main{ grid-template-columns:1fr; }
   .device-area{ grid-template-columns:repeat(2,1fr); }
+  .card-header-flex { flex-direction: column; align-items: flex-start; }
+  .mode-control-group { width: 100%; justify-content: space-between; }
 }
 </style>
 </head>
@@ -79,7 +86,15 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 
 <div>
   <div class="card">
-    <h2>อุปกรณ์ทั้งหมด</h2>
+    <div class="card-header-flex">
+      <h2>อุปกรณ์ทั้งหมด</h2>
+      <div class="mode-control-group">
+         <div id="globalModeText" style="font-size:14px; font-weight:600; color:#555;">โหมดภาพรวม: -</div>
+         <button id="globalModeAutoBtn" class="action" style="margin-top:0; padding:8px 12px; background:#7f8c8d; border-radius:8px;" onclick="changeGlobalMode('auto')">🤖 Auto</button>
+         <button id="globalModeManualBtn" class="action" style="margin-top:0; padding:8px 12px; background:#7f8c8d; border-radius:8px;" onclick="changeGlobalMode('manual')">🕹 Manual</button>
+      </div>
+    </div>
+    
     <div class="device-area" id="deviceArea">
       <div class="slot empty">ช่องที่ 1</div>
       <div class="slot empty">ช่องที่ 2</div>
@@ -104,16 +119,16 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
   </div>
 
   <div class="card">
-    <h3>ตั้งเวลาอัตโนมัติ / เลือกโหมด</h3>
-    <select id="deviceSelect" onchange="updateModeUI()">
-      <option value="">เลือกอุปกรณ์เพื่อตั้งค่าโหมด</option>
+    <h3>ตั้งเวลาทำงาน (ตามตารางเวลา)</h3>
+    <select id="deviceSelect" onchange="updateDeviceScheduleUI()">
+      <option value="">เลือกอุปกรณ์เพื่อตั้งเวลา</option>
     </select>
     
-    <div style="margin-top:15px; display:flex; gap:10px;">
-       <button id="modeAutoBtn" class="action" style="margin-top:0; background:#7f8c8d;" onclick="changeDeviceMode('auto')">🤖 โหมด Auto</button>
-       <button id="modeManualBtn" class="action" style="margin-top:0; background:#7f8c8d;" onclick="changeDeviceMode('manual')">🕹 โหมด Manual</button>
+    <div id="deviceScheduleModeText" style="margin-top:8px; font-size:14px; font-weight:600; color:#555;">สถานะตารางเวลาอุปกรณ์: -</div>
+    <div style="margin-top:8px; display:flex; gap:10px;">
+       <button id="scheduleAutoBtn" class="action" style="margin-top:0; background:#7f8c8d;" onclick="changeDeviceScheduleMode('auto')">เปิดตารางเวลา</button>
+       <button id="scheduleManualBtn" class="action" style="margin-top:0; background:#7f8c8d;" onclick="changeDeviceScheduleMode('manual')">ปิดตารางเวลา</button>
     </div>
-    <div id="currentModeText" style="margin-top:8px; font-size:14px; font-weight:600; color:#555;">โหมดปัจจุบัน: -</div>
     
     <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
     
@@ -158,8 +173,8 @@ let schedulerInterval = null;
 let lastScheduleAction = "";
 let recognition = null;
 
-// ตัวแปรดึงโหมดจาก LocalStorage เพื่อระบุโหมดการทำงานรายปุ่ม (Auto/Manual) ของหน้าเว็บ
 let deviceModes = JSON.parse(localStorage.getItem("deviceModes")) || {};
+let globalMode = localStorage.getItem("globalMode") || "auto";
 
 async function checkAuthAndLoad() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -171,6 +186,7 @@ async function checkAuthAndLoad() {
   await loadSchedules();
   startScheduler();
   connectWS();
+  updateGlobalModeUI();
 }
 
 async function loadDevices() {
@@ -206,7 +222,7 @@ async function loadDevices() {
 
   await Promise.all(logPromises);
   renderDevices(latestStatusMap);
-  updateModeUI();
+  updateDeviceScheduleUI();
 }
 
 async function loadSchedules() {
@@ -234,8 +250,13 @@ function renderDevices(latestStatusMap = {}) {
     <div class="slot empty">ช่องที่ 8</div>
   `;
   
-  const currentSelectVal = document.getElementById("deviceSelect").value;
-  document.getElementById("deviceSelect").innerHTML = '<option value="">เลือกอุปกรณ์เพื่อตั้งค่าโหมด</option>';
+  // ล็อกค่าที่เลือกอยู่ปัจจุบันไว้ก่อนล้าง UI รีเฟรชข้อมูล
+  const selectEl = document.getElementById("deviceSelect");
+  const currentSelectVal = selectEl ? selectEl.value : "";
+  
+  if (selectEl) {
+    selectEl.innerHTML = '<option value="">เลือกอุปกรณ์เพื่อตั้งเวลา</option>';
+  }
 
   devices.forEach(d => {
     const slot = document.querySelector(".slot.empty");
@@ -247,7 +268,6 @@ function renderDevices(latestStatusMap = {}) {
     const btnClass = isDeviceOn ? "device on" : "device off";
     const btnText = isDeviceOn ? "ON" : "OFF";
 
-    // ส่วนประมวลผลป้าย Badge ติดตามโหมดรายตัว
     const currentMode = deviceModes[d.id] || "manual";
     const modeBadge = currentMode === "auto"
       ? `<span style="background:#3498db; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🤖 Auto</span>`
@@ -256,17 +276,21 @@ function renderDevices(latestStatusMap = {}) {
     slot.innerHTML = `
       <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
       <h3 style="margin-bottom:6px;">${d.name}</h3>
-      <div style="margin-bottom:10px;">โหมด: ${modeBadge}</div>
+      <div style="margin-bottom:10px;">ตารางเวลา: ${modeBadge}</div>
       <button class="${btnClass}" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">${btnText}</button>
       <div style="margin-top:6px;">GPIO ${d.pin}</div>
       <div>🎤 เปิด : ${d.on_key}</div>
       <div>🎤 ปิด : ${d.off_key}</div>
     `;
-    document.getElementById("deviceSelect").innerHTML +=
-      `<option value="${d.id}">${d.name}</option>`;
+    
+    if (selectEl) {
+      selectEl.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+    }
   });
   
-  document.getElementById("deviceSelect").value = currentSelectVal;
+  if (selectEl && currentSelectVal) {
+    selectEl.value = currentSelectVal;
+  }
 }
 
 function renderScheduleList() {
@@ -303,12 +327,10 @@ async function setDeviceState(id, pin, targetState) {
     btn.innerHTML = "OFF";
   }
 
-  // ส่งข้อมูลทาง WebSocket ไปหา ESP32
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({ type: "control", device: pin, status: targetState }));
   }
 
-  // บันทึกลง Supabase
   const { error } = await supabase.from("device_status_logs").insert([{
     device_id: id,
     status: targetState === "on"
@@ -339,7 +361,6 @@ async function checkSchedules() {
     const device = s.devices;
     if (!device) continue;
 
-    // ระบบตรวจเช็คโหมดของเว็บ: ถ้าอุปกรณ์ไม่ได้ตั้งเป็น Auto (ตารางเวลา) จะข้ามส่วนนี้ไปทันที
     const currentMode = deviceModes[device.id] || "manual";
     if (currentMode !== "auto") continue;
 
@@ -527,17 +548,43 @@ window.deleteSchedule = async (deviceId) => {
   await loadSchedules();
 };
 
-// ฟังก์ชันอัปเดตสีของปุ่มเลือกโหมดภาพรวมในกล่องควบคุมด้านขวา
-window.updateModeUI = () => {
+function updateGlobalModeUI() {
+  const autoBtn = document.getElementById("globalModeAutoBtn");
+  const manualBtn = document.getElementById("globalModeManualBtn");
+  const modeText = document.getElementById("globalModeText");
+  
+  if (globalMode === "auto") {
+    autoBtn.style.background = "#2ecc71"; 
+    manualBtn.style.background = "#7f8c8d"; 
+    modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (คุมตามอุณหภูมิ)";
+  } else {
+    autoBtn.style.background = "#7f8c8d"; 
+    manualBtn.style.background = "#e67e22"; 
+    modeText.innerHTML = "โหมดภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
+  }
+}
+
+window.changeGlobalMode = (mode) => {
+  globalMode = mode;
+  localStorage.setItem("globalMode", globalMode);
+  updateGlobalModeUI();
+  
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: "control", mode: mode }));
+  }
+  showSchedulerStatus(`เปลี่ยนโหมดภาพรวมเป็น ${mode === 'auto' ? 'Auto' : 'Manual'}`);
+};
+
+function updateDeviceScheduleUI() {
   const deviceId = document.getElementById("deviceSelect").value;
-  const autoBtn = document.getElementById("modeAutoBtn");
-  const manualBtn = document.getElementById("modeManualBtn");
-  const modeText = document.getElementById("currentModeText");
+  const autoBtn = document.getElementById("scheduleAutoBtn");
+  const manualBtn = document.getElementById("scheduleManualBtn");
+  const modeText = document.getElementById("deviceScheduleModeText");
   
   if (!deviceId) {
-    if(autoBtn) autoBtn.style.background = "#7f8c8d";
-    if(manualBtn) manualBtn.style.background = "#7f8c8d";
-    if(modeText) modeText.innerHTML = "โหมดปัจจุบัน: -";
+    autoBtn.style.background = "#7f8c8d";
+    manualBtn.style.background = "#7f8c8d";
+    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: -";
     return;
   }
 
@@ -546,41 +593,29 @@ window.updateModeUI = () => {
   if (currentMode === "auto") {
     autoBtn.style.background = "#3498db"; 
     manualBtn.style.background = "#7f8c8d"; 
-    modeText.innerHTML = "โหมดปัจจุบัน: 🤖 อัตโนมัติ (ทำงานตามเวลา)";
+    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: เปิดใช้งานตารางเวลา";
   } else {
     autoBtn.style.background = "#7f8c8d"; 
     manualBtn.style.background = "#e67e22"; 
-    modeText.innerHTML = "โหมดปัจจุบัน: 🕹 ควบคุมเอง (เปิด/ปิดอิสระ)";
+    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: ปิดใช้งานตารางเวลา";
   }
-};
+}
 
-// ฟังก์ชันเมื่อกดปุ่มสลับโหมดการทำงาน
-window.changeDeviceMode = (mode) => {
+window.changeDeviceScheduleMode = (mode) => {
   const deviceId = document.getElementById("deviceSelect").value;
-  if (!deviceId) {
-    alert("กรุณาเลือกอุปกรณ์ก่อนเปลี่ยนโหมดครับ");
-    return;
-  }
+  if (!deviceId) { alert("กรุณาเลือกอุปกรณ์ก่อนครับ"); return; }
   
   deviceModes[deviceId] = mode;
   localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
   
-  updateModeUI();
+  updateDeviceScheduleUI();
   
-  // โอนถ่ายข้อมูลสถานะจริงจาก UI ปัจจุบันเพื่อประกอบโครงสร้างการเรนเดอร์ใหม่โดยไม่ให้ปุ่มกระตุก
   const latestStatusMap = {};
   devices.forEach(d => {
     const btn = document.getElementById("btn-" + d.id);
     if(btn) latestStatusMap[d.id] = btn.classList.contains("on");
   });
   renderDevices(latestStatusMap);
-
-  // 💡 ซิงค์และแชร์คำสั่งภาพรวม (Auto/Manual บอร์ด) ส่งไปอัปเดตตัวแปร autoMode ของ ESP32 ด้วย
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: "control", mode: mode }));
-  }
-  
-  showSchedulerStatus(`เปลี่ยนเป็นโหมด ${mode === 'auto' ? 'Auto' : 'Manual'} เรียบร้อย`);
 };
 
 function connectWS() {
@@ -589,6 +624,7 @@ function connectWS() {
   ws.onopen = () => { 
     console.log("เชื่อมต่อ WebSocket สำเร็จ");
     ws.send(JSON.stringify({ type: "web" })); 
+    ws.send(JSON.stringify({ type: "control", mode: globalMode }));
   };
   
   ws.onmessage = (event) => {
@@ -600,15 +636,15 @@ function connectWS() {
           if (!btn) return;
 
           let isDeviceOn = false;
-          if (d.pin == "16") isDeviceOn = data.light;
+          // ปรับปรุงให้ตรวจสอบตาม Pin Mapping ให้รองรับอย่างเสถียร
+          if (d.pin == "16")      isDeviceOn = data.light;
           else if (d.pin == "5")  isDeviceOn = data.fan1;
           else if (d.pin == "17") isDeviceOn = data.fan2;
           else if (d.pin == "18") isDeviceOn = data.pump1;
           else if (d.pin == "19") isDeviceOn = data.pump2;
           else if (d.pin == "21") isDeviceOn = data.motor;
-          else return;
+          else return; // หากตั้งขาอื่นปล่อยผ่าน ให้ขึ้นอยู่กับ State หน้าเว็บล่าสุด
 
-          // 💡 ตรวจเช็คเพื่อเปลี่ยนสถานะสีปุ่มเปิด-ปิดตามสถานะจริงของ ESP32 ที่ส่งกลับมาแบบ Real-time
           if (isDeviceOn) {
             btn.className = "device on";
             btn.innerHTML = "ON";
@@ -618,26 +654,28 @@ function connectWS() {
           }
         });
       }
-    } catch (e) {
-      console.error("WebSocket ข้อความผิดพลาด:", e);
-    }
+    } catch (e) { console.error(e); }
   };
   
   ws.onclose = () => { setTimeout(connectWS, 5000); };
 }
 
-window.logout = async () => {
+async function logout() {
   if (schedulerInterval) clearInterval(schedulerInterval);
   await supabase.auth.signOut();
   location.href = "index.html";
-};
+}
 
-window.goPage2 = () => { location.href = "history.html"; };
+function goPage2() { 
+  location.href = "history.html"; 
+}
 
+// ผูกฟังก์ชันเข้า Window Object เพียงรอบเดียวป้องกัน Error
 window.logout = logout;
 window.goPage2 = goPage2;
-window.updateModeUI = updateModeUI;
-window.changeDeviceMode = changeDeviceMode;
+window.updateDeviceScheduleUI = updateDeviceScheduleUI;
+window.changeDeviceScheduleMode = changeDeviceScheduleMode;
+window.changeGlobalMode = changeGlobalMode;
 
 checkAuthAndLoad();
 </script>
