@@ -250,7 +250,6 @@ function renderDevices(latestStatusMap = {}) {
     <div class="slot empty">ช่องที่ 8</div>
   `;
   
-  // ล็อกค่าที่เลือกอยู่ปัจจุบันไว้ก่อนล้าง UI รีเฟรชข้อมูล
   const selectEl = document.getElementById("deviceSelect");
   const currentSelectVal = selectEl ? selectEl.value : "";
   
@@ -273,11 +272,17 @@ function renderDevices(latestStatusMap = {}) {
       ? `<span style="background:#3498db; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🤖 Auto</span>`
       : `<span style="background:#e67e22; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🕹 Manual</span>`;
 
+    // ปรับดีไซน์ปุ่มเมื่ออยู่ในโหมดภาพรวม Auto เพื่อสื่อว่ากดด้วยมือไม่ได้
+    let disabledStyle = "";
+    if (globalMode === "auto") {
+      disabledStyle = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
+    }
+
     slot.innerHTML = `
       <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
       <h3 style="margin-bottom:6px;">${d.name}</h3>
       <div style="margin-bottom:10px;">ตารางเวลา: ${modeBadge}</div>
-      <button class="${btnClass}" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">${btnText}</button>
+      <button class="${btnClass}" style="${disabledStyle}" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">${btnText}</button>
       <div style="margin-top:6px;">GPIO ${d.pin}</div>
       <div>🎤 เปิด : ${d.on_key}</div>
       <div>🎤 ปิด : ${d.off_key}</div>
@@ -339,6 +344,11 @@ async function setDeviceState(id, pin, targetState) {
 }
 
 window.toggleDevice = async (id, pin) => {
+  // บล็อกไม่ให้เปิดปิดมือ ถ้าอยู่ในโหมด Auto
+  if (globalMode === "auto") {
+    alert("ระบบรันในโหมดอัตโนมัติ (Auto) อยู่ครับ ไม่สามารถคุมด้วยนิ้วอิสระได้ หากต้องการเปลี่ยนกรุณากดเลือกโหมด Manual ด้านบนก่อน");
+    return;
+  }
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
   const targetState = btn.classList.contains("on") ? "off" : "on";
@@ -444,6 +454,12 @@ window.startVoice = async () => {
     
     const text = event.results[0][0].transcript.trim().toLowerCase();
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
+
+    // บล็อกการสั่งงานด้วยเสียงหากหน้าเว็บรันโหมด Auto อยู่
+    if (globalMode === "auto") {
+      if (voiceText) voiceText.innerHTML = `⚠️ ไม่สามารถสั่งงานได้เนื่องจากระบบรัน Auto อยู่`;
+      return;
+    }
 
     let matched = false;
     for (const d of devices) {
@@ -556,7 +572,7 @@ function updateGlobalModeUI() {
   if (globalMode === "auto") {
     autoBtn.style.background = "#2ecc71"; 
     manualBtn.style.background = "#7f8c8d"; 
-    modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (คุมตามอุณหภูมิ)";
+    modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (คุมตามสถิติฟาร์ม)";
   } else {
     autoBtn.style.background = "#7f8c8d"; 
     manualBtn.style.background = "#e67e22"; 
@@ -572,6 +588,15 @@ window.changeGlobalMode = (mode) => {
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({ type: "control", mode: mode }));
   }
+  
+  // สั่งเปลี่ยนสถานะสไตล์ล็อกปุ่มอุปกรณ์ในหน้าเว็บทันทีเมื่อสลับโหมด
+  const latestStatusMap = {};
+  devices.forEach(d => {
+    const btn = document.getElementById("btn-" + d.id);
+    if(btn) latestStatusMap[d.id] = btn.classList.contains("on");
+  });
+  renderDevices(latestStatusMap);
+
   showSchedulerStatus(`เปลี่ยนโหมดภาพรวมเป็น ${mode === 'auto' ? 'Auto' : 'Manual'}`);
 };
 
@@ -636,14 +661,13 @@ function connectWS() {
           if (!btn) return;
 
           let isDeviceOn = false;
-          // ปรับปรุงให้ตรวจสอบตาม Pin Mapping ให้รองรับอย่างเสถียร
           if (d.pin == "16")      isDeviceOn = data.light;
           else if (d.pin == "5")  isDeviceOn = data.fan1;
           else if (d.pin == "17") isDeviceOn = data.fan2;
           else if (d.pin == "18") isDeviceOn = data.pump1;
           else if (d.pin == "19") isDeviceOn = data.pump2;
           else if (d.pin == "21") isDeviceOn = data.motor;
-          else return; // หากตั้งขาอื่นปล่อยผ่าน ให้ขึ้นอยู่กับ State หน้าเว็บล่าสุด
+          else return; 
 
           if (isDeviceOn) {
             btn.className = "device on";
@@ -670,7 +694,6 @@ function goPage2() {
   location.href = "history.html"; 
 }
 
-// ผูกฟังก์ชันเข้า Window Object เพียงรอบเดียวป้องกัน Error
 window.logout = logout;
 window.goPage2 = goPage2;
 window.updateDeviceScheduleUI = updateDeviceScheduleUI;
