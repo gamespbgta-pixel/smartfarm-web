@@ -344,7 +344,6 @@ async function setDeviceState(id, pin, targetState) {
 }
 
 window.toggleDevice = async (id, pin) => {
-  // บล็อกไม่ให้เปิดปิดมือ ถ้าอยู่ในโหมด Auto
   if (globalMode === "auto") {
     alert("ระบบรันในโหมดอัตโนมัติ (Auto) อยู่ครับ ไม่สามารถคุมด้วยนิ้วอิสระได้ หากต้องการเปลี่ยนกรุณากดเลือกโหมด Manual ด้านบนก่อน");
     return;
@@ -356,6 +355,9 @@ window.toggleDevice = async (id, pin) => {
 };
 
 async function checkSchedules() {
+  // บล็อกการทำงานของระบบตั้งเวลาในเว็บเด็ดขาด ถ้าเปิดโหมดภาพรวมแบบ Manual อยู่
+  if (globalMode === "manual") return;
+
   const currentTime = getCurrentTime();
 
   if (devices.length) {
@@ -455,7 +457,6 @@ window.startVoice = async () => {
     const text = event.results[0][0].transcript.trim().toLowerCase();
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
 
-    // บล็อกการสั่งงานด้วยเสียงหากหน้าเว็บรันโหมด Auto อยู่
     if (globalMode === "auto") {
       if (voiceText) voiceText.innerHTML = `⚠️ ไม่สามารถสั่งงานได้เนื่องจากระบบรัน Auto อยู่`;
       return;
@@ -581,6 +582,13 @@ function updateGlobalModeUI() {
 }
 
 window.changeGlobalMode = (mode) => {
+  // 💡 ปรับปรุงจุดสำคัญ: ตรวจสอบโหมดก่อนยิง ป้องกันลูปรัวของปุ่มกด
+  if (globalMode === mode && ws && ws.readyState === 1) {
+    // ส่งเผื่อไปครั้งเดียวเผื่อบอร์ดหลุดสาย แต่จะไม่ทำการสั่ง re-render ซ้ำซ้อน
+    ws.send(JSON.stringify({ type: "control", mode: mode }));
+    return;
+  }
+
   globalMode = mode;
   localStorage.setItem("globalMode", globalMode);
   updateGlobalModeUI();
@@ -589,7 +597,6 @@ window.changeGlobalMode = (mode) => {
     ws.send(JSON.stringify({ type: "control", mode: mode }));
   }
   
-  // สั่งเปลี่ยนสถานะสไตล์ล็อกปุ่มอุปกรณ์ในหน้าเว็บทันทีเมื่อสลับโหมด
   const latestStatusMap = {};
   devices.forEach(d => {
     const btn = document.getElementById("btn-" + d.id);
@@ -649,13 +656,23 @@ function connectWS() {
   ws.onopen = () => { 
     console.log("เชื่อมต่อ WebSocket สำเร็จ");
     ws.send(JSON.stringify({ type: "web" })); 
-    ws.send(JSON.stringify({ type: "control", mode: globalMode }));
+    // ❌ เอาโค้ดที่แอบสั่งเปลี่ยนโหมดรัวๆ ตอนต่อสายตรงนี้ออกไปอย่างถาวร
   };
   
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
+      
+      // 💡 รับค่าสถานะอุปกรณ์จริงสะท้อนกลับจากบอร์ด (UI เปลี่ยนสีตามความจริง)
       if (data.type === "status") {
+        
+        // อัปเดตสถานะตัวแปรโหมดของบอร์ดให้ตรงกันอย่างระมัดระวัง (แต่ห้ามยิงคำสั่งย้อนศรกลับไปหาบอร์ด)
+        if (data.mode && data.mode !== globalMode) {
+            globalMode = data.mode;
+            localStorage.setItem("globalMode", globalMode);
+            updateGlobalModeUI();
+        }
+
         devices.forEach(d => {
           const btn = document.getElementById("btn-" + d.id);
           if (!btn) return;
