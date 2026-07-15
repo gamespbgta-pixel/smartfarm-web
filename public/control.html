@@ -671,12 +671,12 @@ function connectWS() {
           if (!btn) return;
 
           let isDeviceOn = false;
-          if (d.pin == "16")      isDeviceOn = data.light;
-          else if (d.pin == "5")  isDeviceOn = data.fan1;
-          else if (d.pin == "17") isDeviceOn = data.fan2;
-          else if (d.pin == "18") isDeviceOn = data.pump1;
+          if (d.pin == "17")      isDeviceOn = data.light;
+          else if (d.pin == "16")  isDeviceOn = data.fan1;
+          else if (d.pin == "5") isDeviceOn = data.fan2;
+          else if (d.pin == "21") isDeviceOn = data.pump1;
           else if (d.pin == "19") isDeviceOn = data.pump2;
-          else if (d.pin == "21") isDeviceOn = data.motor;
+          else if (d.pin == "18") isDeviceOn = data.motor;
           else return; 
 
           if (globalMode === "auto") {
