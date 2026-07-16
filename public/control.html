@@ -653,49 +653,49 @@ function connectWS() {
     ws.send(JSON.stringify({ type: "web" })); 
   };
   
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === "status") {
-        // ซิงค์โหมดภาพรวมตามที่บอร์ดรายงานกลับมา
-        if (data.mode && data.mode !== globalMode) {
-          globalMode = data.mode;
-          localStorage.setItem("globalMode", globalMode);
-          updateGlobalModeUI();
+ws.onmessage = (event) => {
+  try {
+    const data = JSON.parse(event.data);
+    
+    if (data.type === "status") {
+      // ซิงค์โหมดภาพรวมตามที่บอร์ดรายงานกลับมา
+      if (data.mode && data.mode !== globalMode) {
+        globalMode = data.mode;
+        localStorage.setItem("globalMode", globalMode);
+        updateGlobalModeUI();
+      }
+
+      // ✅ แก้ไขตรงนี้: ซิงค์สถานะรีเลย์ให้ตรงกับขาพินจริงบนบอร์ด ESP32
+      devices.forEach(d => {
+        const btn = document.getElementById("btn-" + d.id);
+        if (!btn) return;
+
+        let isDeviceOn = false;
+        if (d.pin == "17")      isDeviceOn = data.light;  // ESP32: #define RELAY_LIGHT 17
+        else if (d.pin == "16") isDeviceOn = data.fan1;   // ESP32: #define RELAY_FAN1 16
+        else if (d.pin == "5")  isDeviceOn = data.fan2;   // ESP32: #define RELAY_FAN2 5
+        else if (d.pin == "21") isDeviceOn = data.pump1;  // ESP32: #define RELAY_PUMP1 21
+        else if (d.pin == "19") isDeviceOn = data.pump2;  // ESP32: #define RELAY_PUMP2 19
+        else if (d.pin == "18") isDeviceOn = data.motor;  // ESP32: #define RELAY_MOTOR 18
+        else return; 
+
+        if (globalMode === "auto") {
+          btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
+        } else {
+          btn.style.cssText = "";
         }
 
-        // ซิงค์สถานะรีเลย์ตามจริงที่บอร์ดรายงานมา โดยไม่ทำลาย Element บนหน้าเว็บ
-        devices.forEach(d => {
-          const btn = document.getElementById("btn-" + d.id);
-          if (!btn) return;
-
-          let isDeviceOn = false;
-          if (d.pin == "17")      isDeviceOn = data.light;
-          else if (d.pin == "16")  isDeviceOn = data.fan1;
-          else if (d.pin == "5") isDeviceOn = data.fan2;
-          else if (d.pin == "21") isDeviceOn = data.pump1;
-          else if (d.pin == "19") isDeviceOn = data.pump2;
-          else if (d.pin == "18") isDeviceOn = data.motor;
-          else return; 
-
-          if (globalMode === "auto") {
-            btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
-          } else {
-            btn.style.cssText = "";
-          }
-
-          if (isDeviceOn) {
-            btn.className = "device on";
-            btn.innerHTML = "ON";
-          } else {
-            btn.className = "device off";
-            btn.innerHTML = "OFF";
-          }
-        });
-      }
-    } catch (e) { console.error(e); }
-  };
+        if (isDeviceOn) {
+          btn.className = "device on";
+          btn.innerHTML = "ON";
+        } else {
+          btn.className = "device off";
+          btn.innerHTML = "OFF";
+        }
+      });
+    }
+  } catch (e) { console.error(e); }
+};
   
   ws.onclose = () => { setTimeout(connectWS, 5000); };
 }
