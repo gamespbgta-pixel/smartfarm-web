@@ -85,6 +85,28 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 <div class="main">
 
 <div>
+  <!-- 🔥 [เพิ่มสำเร็จ] หน้าต่างการ์ดแสดงผลข้อมูลเซนเซอร์แบบกล่องสามช่อง -->
+  <div class="card" style="background: linear-gradient(135deg, #34495e, #2c3e50); color: white;">
+    <h3 style="margin-top: 0; color: #2ecc71;">📊 ค่าจากเซนเซอร์ปัจจุบัน</h3>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
+        <span style="font-size: 30px;">🌡️</span>
+        <div style="font-size: 14px; opacity: 0.8;">อุณหภูมิ</div>
+        <div id="displayTemp" style="font-size: 24px; font-weight: bold;">-- °C</div>
+      </div>
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
+        <span style="font-size: 30px;">🌾</span>
+        <div style="font-size: 14px; opacity: 0.8;">ระดับอาหาร</div>
+        <div id="displayFood" style="font-size: 24px; font-weight: bold;">-- %</div>
+      </div>
+      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
+        <span style="font-size: 30px;">💧</span>
+        <div style="font-size: 14px; opacity: 0.8;">ระดับน้ำ</div>
+        <div id="displayWater" style="font-size: 24px; font-weight: bold;">-- %</div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header-flex">
       <h2>อุปกรณ์ทั้งหมด</h2>
@@ -456,7 +478,7 @@ window.startVoice = async () => {
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
 
     if (globalMode === "auto") {
-      if (voiceText) voiceText.innerHTML = `⚠️ 不สามารถสั่งงานได้เนื่องจากระบบรัน Auto อยู่`;
+      if (voiceText) voiceText.innerHTML = `⚠️ ไม่สามารถสั่งงานได้เนื่องจากระบบรัน Auto อยู่`;
       return;
     }
 
@@ -575,7 +597,7 @@ function updateGlobalModeUI() {
   } else {
     if(autoBtn) autoBtn.style.background = "#7f8c8d"; 
     if(manualBtn) manualBtn.style.background = "#e67e22"; 
-    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
+    if(modeText) modeText.innerHTML = "โmovedภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
   }
 }
 
@@ -611,7 +633,7 @@ function updateDeviceScheduleUI() {
   if (!deviceId) {
     autoBtn.style.background = "#7f8c8d";
     manualBtn.style.background = "#7f8c8d";
-    modeText.innerHTML = "暗ถานะตารางเวลาอุปกรณ์: -";
+    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: -";
     return;
   }
 
@@ -658,6 +680,18 @@ function connectWS() {
       
       if (data.type === "status" || data.type === "sensor") {
         
+        // 🔥 [แก้ไขสำเร็จ] รับค่าตัวแปรจาก ESP32 มาเรนเดอร์ลง UI แบบ Real-time ทันที
+        if (data.temperature !== undefined) {
+          const tempVal = parseFloat(data.temperature);
+          document.getElementById("displayTemp").innerHTML = tempVal > 0 ? tempVal.toFixed(1) + " °C" : "-- °C";
+        }
+        if (data.food_level !== undefined) {
+          document.getElementById("displayFood").innerHTML = data.food_level + " %";
+        }
+        if (data.water_level !== undefined) {
+          document.getElementById("displayWater").innerHTML = data.water_level + " %";
+        }
+
         if (data.mode && data.mode !== globalMode) {
           globalMode = data.mode;
           localStorage.setItem("globalMode", globalMode);
