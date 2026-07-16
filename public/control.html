@@ -456,7 +456,7 @@ window.startVoice = async () => {
     if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
 
     if (globalMode === "auto") {
-      if (voiceText) voiceText.innerHTML = `⚠️ ไม่สามารถสั่งงานได้เนื่องจากระบบรัน Auto อยู่`;
+      if (voiceText) voiceText.innerHTML = `⚠️ 不สามารถสั่งงานได้เนื่องจากระบบรัน Auto อยู่`;
       return;
     }
 
@@ -588,7 +588,6 @@ window.changeGlobalMode = (mode) => {
     ws.send(JSON.stringify({ type: "control", mode: mode }));
   }
   
-  // อัปเดตสถานะปุ่มกดจาง/ชัดตามโหมดใหม่ทันที
   devices.forEach(d => {
     const btn = document.getElementById("btn-" + d.id);
     if(btn) {
@@ -612,7 +611,7 @@ function updateDeviceScheduleUI() {
   if (!deviceId) {
     autoBtn.style.background = "#7f8c8d";
     manualBtn.style.background = "#7f8c8d";
-    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: -";
+    modeText.innerHTML = "暗ถานะตารางเวลาอุปกรณ์: -";
     return;
   }
 
@@ -653,56 +652,50 @@ function connectWS() {
     ws.send(JSON.stringify({ type: "web" })); 
   };
   
-ws.onmessage = (event) => {
-  try {
-    const data = JSON.parse(event.data);
-    
-    // ปรับปรุง: รองรับทั้งข้อความประเภท "status" และ "sensor" ที่แนบสถานะอุปกรณ์มา
-    if (data.type === "status" || data.type === "sensor") {
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
       
-      // ซิงค์โหมดภาพรวมตามที่บอร์ดรายงานกลับมา
-      if (data.mode && data.mode !== globalMode) {
-        globalMode = data.mode;
-        localStorage.setItem("globalMode", globalMode);
-        updateGlobalModeUI();
+      if (data.type === "status" || data.type === "sensor") {
+        
+        if (data.mode && data.mode !== globalMode) {
+          globalMode = data.mode;
+          localStorage.setItem("globalMode", globalMode);
+          updateGlobalModeUI();
+        }
+
+        devices.forEach(d => {
+          const btn = document.getElementById("btn-" + d.id);
+          if (!btn) return;
+
+          let isDeviceOn = false;
+          if (d.pin == 17)       isDeviceOn = data.light;  
+          else if (d.pin == 16)  isDeviceOn = data.fan1;   
+          else if (d.pin == 5)   isDeviceOn = data.fan2;   
+          else if (d.pin == 21)  isDeviceOn = data.pump1;  
+          else if (d.pin == 19)  isDeviceOn = data.pump2;  
+          else if (d.pin == 18)  isDeviceOn = data.motor;  
+          else return; 
+
+          if (globalMode === "auto") {
+            btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
+          } else {
+            btn.style.cssText = "";
+          }
+
+          if (isDeviceOn) {
+            btn.className = "device on";
+            btn.innerHTML = "ON";
+          } else {
+            btn.className = "device off";
+            btn.innerHTML = "OFF";
+          }
+        });
       }
-
-      // ซิงค์สถานะรีเลย์ให้ตรงกับขาพินจริงบนบอร์ด ESP32
-      devices.forEach(d => {
-        const btn = document.getElementById("btn-" + d.id);
-        if (!btn) return;
-
-        let isDeviceOn = false;
-        // ใช้ == เพื่อรองรับทั้งกรณี d.pin เป็น String หรือ Number จากระบบฐานข้อมูล
-        if (d.pin == 17)       isDeviceOn = data.light;  // ESP32: RELAY_LIGHT 17
-        else if (d.pin == 16)  isDeviceOn = data.fan1;   // ESP32: RELAY_FAN1 16
-        else if (d.pin == 5)   isDeviceOn = data.fan2;   // ESP32: RELAY_FAN2 5
-        else if (d.pin == 21)  isDeviceOn = data.pump1;  // ESP32: RELAY_PUMP1 21
-        else if (d.pin == 19)  isDeviceOn = data.pump2;  // ESP32: RELAY_PUMP2 19
-        else if (d.pin == 18)  isDeviceOn = data.motor;  // ESP32: RELAY_MOTOR 18
-        else return; 
-
-        // ควบคุมสไตล์ของปุ่มตามโหมดภาพรวม
-        if (globalMode === "auto") {
-          btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
-        } else {
-          btn.style.cssText = "";
-        }
-
-        // แสดงผลสถานะปุ่มจริงเปิด/ปิด
-        if (isDeviceOn) {
-          btn.className = "device on";
-          btn.innerHTML = "ON";
-        } else {
-          btn.className = "device off";
-          btn.innerHTML = "OFF";
-        }
-      });
+    } catch (e) { 
+      console.error("เกิดข้อผิดพลาดในการประมวลผลข้อมูล WebSocket:", e); 
     }
-  } catch (e) { 
-    console.error("เกิดข้อผิดพลาดในการประมวลผลข้อมูล WebSocket:", e); 
-  }
-};
+  };
   
   ws.onclose = () => { setTimeout(connectWS, 5000); };
 }
