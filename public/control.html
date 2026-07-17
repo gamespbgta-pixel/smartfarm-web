@@ -85,7 +85,7 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 <div class="main">
 
 <div>
-  <!-- 🔥 [เพิ่มสำเร็จ] หน้าต่างการ์ดแสดงผลข้อมูลเซนเซอร์แบบกล่องสามช่อง -->
+  <!-- 📊 ส่วนการ์ดแสดงผลเซนเซอร์ล่าสุดแบบ 3 ช่อง -->
   <div class="card" style="background: linear-gradient(135deg, #34495e, #2c3e50); color: white;">
     <h3 style="margin-top: 0; color: #2ecc71;">📊 ค่าจากเซนเซอร์ปัจจุบัน</h3>
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
@@ -341,7 +341,8 @@ function getCurrentTime() {
          now.getMinutes().toString().padStart(2, '0');
 }
 
-async function setDeviceState(id, pin, targetState) {
+// 🔥 ฟังก์ชันควบคุมอุปกรณ์เสริมสิทธิ์ "isSchedule" ให้ผ่านโหมด Auto ของ ESP32 ได้
+async function setDeviceState(id, pin, targetState, fromSchedule = false) {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
 
@@ -354,7 +355,12 @@ async function setDeviceState(id, pin, targetState) {
   }
 
   if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: "control", device: pin.toString(), status: targetState }));
+    ws.send(JSON.stringify({ 
+      type: "control", 
+      device: pin.toString(), 
+      status: targetState,
+      isSchedule: fromSchedule 
+    }));
   }
 
   const { error } = await supabase.from("device_status_logs").insert([{
@@ -372,12 +378,11 @@ window.toggleDevice = async (id, pin) => {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
   const targetState = btn.classList.contains("on") ? "off" : "on";
-  await setDeviceState(id, pin, targetState);
+  await setDeviceState(id, pin, targetState, false); // ส่งเท็จเพราะเป็นการกดมือ
 };
 
 async function checkSchedules() {
-  if (globalMode === "manual") return;
-
+  // สังเกตตรงนี้: แม้ภาพรวมเป็น Auto ตารางเวลาก็จะรันต่อ ไม่โดนบล็อกแล้ว
   const currentTime = getCurrentTime();
 
   if (devices.length) {
@@ -401,13 +406,13 @@ async function checkSchedules() {
 
     if (currentTime === timeOnClean && lastScheduleAction !== device.id + "_on_" + currentTime) {
       lastScheduleAction = device.id + "_on_" + currentTime;
-      await setDeviceState(device.id, device.pin, "on");
+      await setDeviceState(device.id, device.pin, "on", true); // ส่ง true ไประบุสิทธิ์ตารางเวลา
       showSchedulerStatus(`⏰ เปิด ${device.name} อัตโนมัติ`);
     }
 
     if (currentTime === timeOffClean && lastScheduleAction !== device.id + "_off_" + currentTime) {
       lastScheduleAction = device.id + "_off_" + currentTime;
-      await setDeviceState(device.id, device.pin, "off");
+      await setDeviceState(device.id, device.pin, "off", true); // ส่ง true ไประบุสิทธิ์ตารางเวลา
       showSchedulerStatus(`⏰ ปิด ${device.name} อัตโนมัติ`);
     }
   }
@@ -488,11 +493,11 @@ window.startVoice = async () => {
       const cleanOffKey = d.off_key.trim().toLowerCase();
 
       if (text === cleanOnKey) {
-        await setDeviceState(d.id, d.pin, "on");
+        await setDeviceState(d.id, d.pin, "on", false);
         matched = true;
         break; 
       } else if (text === cleanOffKey) {
-        await setDeviceState(d.id, d.pin, "off");
+        await setDeviceState(d.id, d.pin, "off", false);
         matched = true;
         break; 
       }
@@ -593,11 +598,11 @@ function updateGlobalModeUI() {
   if (globalMode === "auto") {
     if(autoBtn) autoBtn.style.background = "#2ecc71"; 
     if(manualBtn) manualBtn.style.background = "#7f8c8d"; 
-    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (คุมตามสถิติฟาร์ม)";
+    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (ตารางเวลาทำงานได้)";
   } else {
     if(autoBtn) autoBtn.style.background = "#7f8c8d"; 
     if(manualBtn) manualBtn.style.background = "#e67e22"; 
-    if(modeText) modeText.innerHTML = "โmovedภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
+    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
   }
 }
 
@@ -680,7 +685,7 @@ function connectWS() {
       
       if (data.type === "status" || data.type === "sensor") {
         
-        // 🔥 [แก้ไขสำเร็จ] รับค่าตัวแปรจาก ESP32 มาเรนเดอร์ลง UI แบบ Real-time ทันที
+        // 🌡️ อัปเดตข้อมูลเซนเซอร์ต่างๆ สู่หน้าจอเว็บ
         if (data.temperature !== undefined) {
           const tempVal = parseFloat(data.temperature);
           document.getElementById("displayTemp").innerHTML = tempVal > 0 ? tempVal.toFixed(1) + " °C" : "-- °C";
@@ -708,7 +713,9 @@ function connectWS() {
           else if (d.pin == 5)   isDeviceOn = data.fan2;   
           else if (d.pin == 21)  isDeviceOn = data.pump1;  
           else if (d.pin == 19)  isDeviceOn = data.pump2;  
-          else if (d.pin == 18)  isDeviceOn = data.motor;  
+          
+          // 🌾 🔥 แก้ไขบั๊กจับคู่พินมอเตอร์ (รางอาหาร) ให้ดักอ่านได้ทั้ง motor และ status_motor
+          else if (d.pin == 18)  isDeviceOn = data.motor !== undefined ? data.motor : data.status_motor;  
           else return; 
 
           if (globalMode === "auto") {
