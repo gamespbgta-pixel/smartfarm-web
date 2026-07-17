@@ -341,7 +341,6 @@ function getCurrentTime() {
          now.getMinutes().toString().padStart(2, '0');
 }
 
-// 🔥 ฟังก์ชันควบคุมอุปกรณ์เสริมสิทธิ์ "isSchedule" ให้ผ่านโหมด Auto ของ ESP32 ได้
 async function setDeviceState(id, pin, targetState, fromSchedule = false) {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
@@ -378,11 +377,10 @@ window.toggleDevice = async (id, pin) => {
   const btn = document.getElementById("btn-" + id);
   if (!btn) return;
   const targetState = btn.classList.contains("on") ? "off" : "on";
-  await setDeviceState(id, pin, targetState, false); // ส่งเท็จเพราะเป็นการกดมือ
+  await setDeviceState(id, pin, targetState, false);
 };
 
 async function checkSchedules() {
-  // สังเกตตรงนี้: แม้ภาพรวมเป็น Auto ตารางเวลาก็จะรันต่อ ไม่โดนบล็อกแล้ว
   const currentTime = getCurrentTime();
 
   if (devices.length) {
@@ -406,13 +404,13 @@ async function checkSchedules() {
 
     if (currentTime === timeOnClean && lastScheduleAction !== device.id + "_on_" + currentTime) {
       lastScheduleAction = device.id + "_on_" + currentTime;
-      await setDeviceState(device.id, device.pin, "on", true); // ส่ง true ไประบุสิทธิ์ตารางเวลา
+      await setDeviceState(device.id, device.pin, "on", true);
       showSchedulerStatus(`⏰ เปิด ${device.name} อัตโนมัติ`);
     }
 
     if (currentTime === timeOffClean && lastScheduleAction !== device.id + "_off_" + currentTime) {
       lastScheduleAction = device.id + "_off_" + currentTime;
-      await setDeviceState(device.id, device.pin, "off", true); // ส่ง true ไประบุสิทธิ์ตารางเวลา
+      await setDeviceState(device.id, device.pin, "off", true);
       showSchedulerStatus(`⏰ ปิด ${device.name} อัตโนมัติ`);
     }
   }
@@ -559,6 +557,7 @@ window.deleteDevice = async (id) => {
   await loadSchedules();
 };
 
+// 🔥 [แก้ไขจุดหลัก] สั่งให้รีเซ็ต action ล่าสุด และทำงานทันทีที่บันทึกสำเร็จ
 window.saveSchedule = async () => {
   const deviceId = document.getElementById("deviceSelect").value;
   const onTime = document.getElementById("timeOn").value;
@@ -580,8 +579,14 @@ window.saveSchedule = async () => {
     setTimeout(() => { statusEl.innerHTML = ""; }, 3000);
   }
 
+  // เคลียร์ค่าตัวแปรจำรอบการรัน เพื่อเปิดทางให้ลอจิกรันได้ทันที
+  lastScheduleAction = "";
+  
+  // อัปเดตรีโหลดตารางเวลาใหม่
   await loadSchedules();
-  startScheduler();
+  
+  // สั่งให้เช็กตารางและสั่งอุปกรณ์ ณ วินาทีนี้ทันที ไม่ต้องรอนาทีถัดไป
+  await checkSchedules();
 };
 
 window.deleteSchedule = async (deviceId) => {
@@ -655,7 +660,8 @@ function updateDeviceScheduleUI() {
   }
 }
 
-window.changeDeviceScheduleMode = (mode) => {
+// 🔥 [แก้ไขจุดหลัก] ดึงใหม่จาก Database แทนที่จะไปแกะคลาสทับซั่วเซต เพื่อไม่ให้สถานะค้างเอ๋อ
+window.changeDeviceScheduleMode = async (mode) => {
   const deviceId = document.getElementById("deviceSelect").value;
   if (!deviceId) { alert("กรุณาเลือกอุปกรณ์ก่อนครับ"); return; }
   
@@ -663,12 +669,14 @@ window.changeDeviceScheduleMode = (mode) => {
   localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
   updateDeviceScheduleUI();
   
-  const latestStatusMap = {};
-  devices.forEach(d => {
-    const btn = document.getElementById("btn-" + d.id);
-    if(btn) latestStatusMap[d.id] = btn.classList.contains("on");
-  });
-  renderDevices(latestStatusMap);
+  // โหลดอุปกรณ์เพื่ออัปเดตสถานะที่แท้จริงกลับมาลง UI
+  await loadDevices();
+  
+  // หากเปลี่ยนเป็นโหมด auto ให้ลองประเมินเวลาสั่งงานของนาทีปัจจุบันทันที
+  if (mode === "auto") {
+    lastScheduleAction = "";
+    await checkSchedules();
+  }
 };
 
 function connectWS() {
@@ -685,7 +693,6 @@ function connectWS() {
       
       if (data.type === "status" || data.type === "sensor") {
         
-        // 🌡️ อัปเดตข้อมูลเซนเซอร์ต่างๆ สู่หน้าจอเว็บ
         if (data.temperature !== undefined) {
           const tempVal = parseFloat(data.temperature);
           document.getElementById("displayTemp").innerHTML = tempVal > 0 ? tempVal.toFixed(1) + " °C" : "-- °C";
@@ -708,13 +715,12 @@ function connectWS() {
           if (!btn) return;
 
           let isDeviceOn = false;
+          // 🔥 ใช้ == ป้องกัน Type Mismatch ระหว่าง string และ number เพื่อความทนทาน
           if (d.pin == 17)       isDeviceOn = data.light;  
           else if (d.pin == 16)  isDeviceOn = data.fan1;   
           else if (d.pin == 5)   isDeviceOn = data.fan2;   
           else if (d.pin == 21)  isDeviceOn = data.pump1;  
           else if (d.pin == 19)  isDeviceOn = data.pump2;  
-          
-          // 🌾 🔥 แก้ไขบั๊กจับคู่พินมอเตอร์ (รางอาหาร) ให้ดักอ่านได้ทั้ง motor และ status_motor
           else if (d.pin == 18)  isDeviceOn = data.motor !== undefined ? data.motor : data.status_motor;  
           else return; 
 
