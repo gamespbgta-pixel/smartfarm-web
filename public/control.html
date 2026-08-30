@@ -180,87 +180,228 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
 </div>
 
 <script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import {
+  createClient
+} from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
+// ==================================================
+// SUPABASE
+// ==================================================
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL =
+  "https://zweosffxlaghnrvimdwx.supabase.co";
 
-let ws;
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
+
+const supabase =
+  createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+// ==================================================
+// VARIABLES
+// ==================================================
+
+let ws = null;
+
 let devices = [];
+
 let schedules = [];
+
 let currentUser = null;
+
 let schedulerInterval = null;
-let lastScheduleAction = "";
+
 let recognition = null;
 
-let deviceModes = JSON.parse(localStorage.getItem("deviceModes")) || {};
-let globalMode = localStorage.getItem("globalMode") || "auto";
+// เก็บการทำงานของ Schedule แต่ละอุปกรณ์
+let lastScheduleAction = {};
 
-async function checkAuthAndLoad() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) { location.href = "index.html"; return; }
+// โหมดของ Schedule แต่ละอุปกรณ์
+let deviceModes =
+  JSON.parse(
+    localStorage.getItem("deviceModes") || "{}"
+  );
+
+// สำคัญ:
+// ค่าเริ่มต้นต้องตรงกับ ESP32 ที่เริ่ม Manual
+let globalMode =
+  localStorage.getItem("globalMode") || "manual";
+
+// ==================================================
+// AUTH
+// ==================================================
+
+async function checkAuthAndLoad()
+{
+  const {
+    data: { user }
+  } =
+    await supabase.auth.getUser();
+
+  if (!user)
+  {
+    location.href = "index.html";
+    return;
+  }
+
   currentUser = user;
-  const el = document.getElementById("user-display");
-  if (el) el.innerHTML = "👤 " + user.email;
+
+  const el =
+    document.getElementById(
+      "user-display"
+    );
+
+  if (el)
+  {
+    el.innerHTML =
+      "👤 " + user.email;
+  }
+
   await loadDevices();
+
   await loadSchedules();
-  startScheduler();
-  connectWS();
+
   updateGlobalModeUI();
+
+  connectWS();
+
+  startScheduler();
 }
 
-async function loadDevices() {
-  const { data: devicesData, error: devError } = await supabase
-    .from("devices")
-    .select("*")
-    .eq("user_id", currentUser.id)
-    .order("created_at");
-    
-  if (devError) { console.error(devError); return; }
-  devices = devicesData || [];
+// ==================================================
+// LOAD DEVICES
+// ==================================================
 
-  if (devices.length === 0) {
+async function loadDevices()
+{
+  const {
+    data,
+    error
+  } =
+    await supabase
+      .from("devices")
+      .select("*")
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .order("created_at");
+
+  if (error)
+  {
+    console.error(error);
+    return;
+  }
+
+  devices = data || [];
+
+  if (!devices.length)
+  {
     renderDevices({});
     return;
   }
 
   const latestStatusMap = {};
-  const logPromises = devices.map(async (d) => {
-    const { data } = await supabase
-      .from("device_status_logs")
-      .select("status")
-      .eq("device_id", d.id)
-      .order("changed_at", { ascending: false })
-      .limit(1);
-    
-    if (data && data.length > 0) {
-      latestStatusMap[d.id] = data[0].status;
-    } else {
-      latestStatusMap[d.id] = false;
-    }
-  });
 
-  await Promise.all(logPromises);
-  renderDevices(latestStatusMap);
+  await Promise.all(
+    devices.map(
+      async d =>
+      {
+        const {
+          data
+        } =
+          await supabase
+            .from(
+              "device_status_logs"
+            )
+            .select("status")
+            .eq(
+              "device_id",
+              d.id
+            )
+            .order(
+              "changed_at",
+              {
+                ascending: false
+              }
+            )
+            .limit(1);
+
+        latestStatusMap[d.id] =
+          data &&
+          data.length
+            ? data[0].status === true
+            : false;
+      }
+    )
+  );
+
+  renderDevices(
+    latestStatusMap
+  );
+
   updateDeviceScheduleUI();
 }
 
-async function loadSchedules() {
-  if (!devices.length) return;
-  const deviceIds = devices.map(d => d.id);
-  const { data, error } = await supabase
-    .from("schedules")
-    .select("*, devices(id, name, pin)")
-    .in("device_id", deviceIds);
-  if (error) { console.error(error); return; }
+// ==================================================
+// LOAD SCHEDULES
+// ==================================================
+
+async function loadSchedules()
+{
+  if (!devices.length)
+  {
+    schedules = [];
+    renderScheduleList();
+    return;
+  }
+
+  const deviceIds =
+    devices.map(
+      d => d.id
+    );
+
+  const {
+    data,
+    error
+  } =
+    await supabase
+      .from("schedules")
+      .select(
+        "*, devices(id, name, pin)"
+      )
+      .in(
+        "device_id",
+        deviceIds
+      );
+
+  if (error)
+  {
+    console.error(error);
+    return;
+  }
+
   schedules = data || [];
+
   renderScheduleList();
 }
 
-function renderDevices(latestStatusMap = {}) {
-  const area = document.getElementById("deviceArea");
+// ==================================================
+// RENDER DEVICES
+// ==================================================
+
+function renderDevices(
+  latestStatusMap = {}
+)
+{
+  const area =
+    document.getElementById(
+      "deviceArea"
+    );
+
   area.innerHTML = `
     <div class="slot empty">ช่องที่ 1</div>
     <div class="slot empty">ช่องที่ 2</div>
@@ -271,499 +412,1818 @@ function renderDevices(latestStatusMap = {}) {
     <div class="slot empty">ช่องที่ 7</div>
     <div class="slot empty">ช่องที่ 8</div>
   `;
-  
-  const selectEl = document.getElementById("deviceSelect");
-  const currentSelectVal = selectEl ? selectEl.value : "";
-  
-  if (selectEl) {
-    selectEl.innerHTML = '<option value="">เลือกอุปกรณ์เพื่อตั้งเวลา</option>';
+
+  const selectEl =
+    document.getElementById(
+      "deviceSelect"
+    );
+
+  const currentSelectVal =
+    selectEl
+      ? selectEl.value
+      : "";
+
+  if (selectEl)
+  {
+    selectEl.innerHTML =
+      '<option value="">เลือกอุปกรณ์เพื่อตั้งเวลา</option>';
   }
 
-  devices.forEach(d => {
-    const slot = document.querySelector(".slot.empty");
-    if (!slot) return;
-    slot.classList.remove("empty");
-    slot.dataset.deviceId = d.id;
+  devices.forEach(
+    d =>
+    {
+      const slot =
+        document.querySelector(
+          ".slot.empty"
+        );
 
-    const isDeviceOn = latestStatusMap[d.id] === true;
-    const btnClass = isDeviceOn ? "device on" : "device off";
-    const btnText = isDeviceOn ? "ON" : "OFF";
+      if (!slot)
+        return;
 
-    const currentMode = deviceModes[d.id] || "manual";
-    const modeBadge = currentMode === "auto"
-      ? `<span style="background:#3498db; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🤖 Auto</span>`
-      : `<span style="background:#e67e22; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🕹 Manual</span>`;
+      slot.classList.remove(
+        "empty"
+      );
 
-    let disabledStyle = "";
-    if (globalMode === "auto") {
-      disabledStyle = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
-    }
+      slot.dataset.deviceId =
+        d.id;
 
-    slot.innerHTML = `
-      <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
-      <h3 style="margin-bottom:6px;">${d.name}</h3>
-      <div style="margin-bottom:10px;">ตารางเวลา: ${modeBadge}</div>
-      <button class="${btnClass}" style="${disabledStyle}" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">${btnText}</button>
-      <div style="margin-top:6px;">GPIO ${d.pin}</div>
-      <div>🎤 เปิด : ${d.on_key}</div>
-      <div>🎤 ปิด : ${d.off_key}</div>
-    `;
-    
-    if (selectEl) {
-      selectEl.innerHTML += `<option value="${d.id}">${d.name}</option>`;
-    }
-  });
-  
-  if (selectEl && currentSelectVal) {
-    selectEl.value = currentSelectVal;
-  }
-}
+      const isDeviceOn =
+        latestStatusMap[d.id] === true;
 
-function renderScheduleList() {
-  const list = document.getElementById("scheduleList");
-  if (!list) return;
-  if (!schedules.length) { list.innerHTML = ""; return; }
-  list.innerHTML = '<div style="margin-top:12px;font-size:13px;color:#555;font-weight:600">รายการเวลาที่ตั้งไว้</div>';
-  schedules.forEach(s => {
-    const name = s.devices?.name || "ไม่ทราบชื่อ";
-    list.innerHTML += `
-      <div class="schedule-item">
-        <span>🔧 ${name} — เปิด ${s.time_on} / ปิด ${s.time_off}</span>
-        <button class="del" onclick="deleteSchedule('${s.device_id}')">🗑</button>
-      </div>
-    `;
-  });
-}
+      const btnClass =
+        isDeviceOn
+          ? "device on"
+          : "device off";
 
-function getCurrentTime() {
-  const now = new Date();
-  return now.getHours().toString().padStart(2, '0') + ':' +
-         now.getMinutes().toString().padStart(2, '0');
-}
+      const btnText =
+        isDeviceOn
+          ? "ON"
+          : "OFF";
 
-async function setDeviceState(id, pin, targetState, fromSchedule = false) {
-  const btn = document.getElementById("btn-" + id);
-  if (!btn) return;
+      const currentMode =
+        deviceModes[d.id] ||
+        "manual";
 
-  if (targetState === "on") {
-    btn.className = "device on";
-    btn.innerHTML = "ON";
-  } else {
-    btn.className = "device off";
-    btn.innerHTML = "OFF";
-  }
+      const modeBadge =
+        currentMode === "auto"
+          ? `<span style="
+              background:#3498db;
+              color:white;
+              padding:3px 10px;
+              border-radius:12px;
+              font-size:12px;
+              font-weight:600;">
+              🤖 Auto
+             </span>`
+          : `<span style="
+              background:#e67e22;
+              color:white;
+              padding:3px 10px;
+              border-radius:12px;
+              font-size:12px;
+              font-weight:600;">
+              🕹 Manual
+             </span>`;
 
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ 
-      type: "control", 
-      device: pin.toString(), 
-      status: targetState,
-      isSchedule: fromSchedule 
-    }));
-  }
+      let disabledStyle = "";
 
-  const { error } = await supabase.from("device_status_logs").insert([{
-    device_id: id,
-    status: targetState === "on"
-  }]);
-  if (error) console.error("บันทึกประวัติไม่สำเร็จ", error);
-}
+      if (
+        globalMode === "auto"
+      )
+      {
+        disabledStyle =
+          "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
+      }
 
-window.toggleDevice = async (id, pin) => {
-  if (globalMode === "auto") {
-    alert("ระบบรันในโหมดอัตโนมัติ (Auto) อยู่ครับ ไม่สามารถคุมด้วยนิ้วอิสระได้ หากต้องการเปลี่ยนกรุณากดเลือกโหมด Manual ด้านบนก่อน");
-    return;
-  }
-  const btn = document.getElementById("btn-" + id);
-  if (!btn) return;
-  const targetState = btn.classList.contains("on") ? "off" : "on";
-  await setDeviceState(id, pin, targetState, false);
-};
+      slot.innerHTML = `
+        <button
+          class="deleteBtn"
+          onclick="deleteDevice('${d.id}')">
+          ✕
+        </button>
 
-async function checkSchedules() {
-  const currentTime = getCurrentTime();
+        <h3 style="margin-bottom:6px;">
+          ${d.name}
+        </h3>
 
-  if (devices.length) {
-    const deviceIds = devices.map(d => d.id);
-    const { data } = await supabase
-      .from("schedules")
-      .select("*, devices(id, name, pin)")
-      .in("device_id", deviceIds);
-    if (data) schedules = data;
-  }
+        <div style="margin-bottom:10px;">
+          ตารางเวลา: ${modeBadge}
+        </div>
 
-  for (const s of schedules) {
-    const device = s.devices;
-    if (!device) continue;
+        <button
+          class="${btnClass}"
+          style="${disabledStyle}"
+          id="btn-${d.id}"
+          onclick="toggleDevice('${d.id}','${d.pin}')">
+          ${btnText}
+        </button>
 
-    const currentMode = deviceModes[device.id] || "manual";
-    if (currentMode !== "auto") continue;
+        <div style="margin-top:6px;">
+          GPIO ${d.pin}
+        </div>
 
-    const timeOnClean = s.time_on ? s.time_on.substring(0, 5) : "";
-    const timeOffClean = s.time_off ? s.time_off.substring(0, 5) : "";
+        <div>
+          🎤 เปิด : ${d.on_key}
+        </div>
 
-    if (currentTime === timeOnClean && lastScheduleAction !== device.id + "_on_" + currentTime) {
-      lastScheduleAction = device.id + "_on_" + currentTime;
-      await setDeviceState(device.id, device.pin, "on", true);
-      showSchedulerStatus(`⏰ เปิด ${device.name} อัตโนมัติ`);
-    }
+        <div>
+          🎤 ปิด : ${d.off_key}
+        </div>
+      `;
 
-    if (currentTime === timeOffClean && lastScheduleAction !== device.id + "_off_" + currentTime) {
-      lastScheduleAction = device.id + "_off_" + currentTime;
-      await setDeviceState(device.id, device.pin, "off", true);
-      showSchedulerStatus(`⏰ ปิด ${device.name} อัตโนมัติ`);
-    }
-  }
-}
-
-function showSchedulerStatus(msg) {
-  const el = document.getElementById("schedulerStatus");
-  if (el) {
-    el.textContent = msg;
-    el.style.opacity = "1";
-    setTimeout(() => { el.style.opacity = "0"; }, 3000);
-  }
-}
-
-function startScheduler() {
-  checkSchedules();
-  if (schedulerInterval) clearInterval(schedulerInterval);
-  schedulerInterval = setInterval(() => {
-    if (new Date().getSeconds() === 0) {
-      checkSchedules();
-    }
-  }, 1000);
-}
-
-window.startVoice = async () => {
-  const voiceBtn = document.getElementById("voiceButton");
-  const voiceText = document.getElementById("voiceText");
-  
-  const SpeechRecognition = window.SpeechRecognition || 
-                            window.webkitSpeechRecognition || 
-                            window.mozSpeechRecognition || 
-                            window.msSpeechRecognition;
-                            
-  if (!SpeechRecognition) {
-    if (voiceText) voiceText.innerHTML = "❌ อุปกรณ์ของคุณไม่รองรับการสั่งงานด้วยเสียง";
-    return;
-  }
-
-  try {
-    await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (err) {
-    if (voiceText) voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์การใช้ไมโครโฟน";
-    return;
-  }
-
-  if (recognition) {
-    try { recognition.abort(); } catch(e){}
-  }
-
-  recognition = new SpeechRecognition();
-  recognition.lang = "th-TH";
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-  recognition.continuous = false; 
-
-  recognition.onstart = () => {
-    if (voiceBtn) {
-      voiceBtn.classList.add("listening");
-      voiceBtn.innerHTML = "🔊 กำลังฟังคำสั่งเสียง...";
-    }
-    if (voiceText) voiceText.innerHTML = "พูดคำสั่งเปิด/ปิดอุปกรณ์ของคุณได้เลย";
-  };
-
-  recognition.onresult = async (event) => {
-    if (!event.results || event.results.length === 0) return;
-    
-    const text = event.results[0][0].transcript.trim().toLowerCase();
-    if (voiceText) voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
-
-    if (globalMode === "auto") {
-      if (voiceText) voiceText.innerHTML = `⚠️ ไม่สามารถสั่งงานได้เนื่องจากระบบรัน Auto อยู่`;
-      return;
-    }
-
-    let matched = false;
-    for (const d of devices) {
-      const cleanOnKey = d.on_key.trim().toLowerCase();
-      const cleanOffKey = d.off_key.trim().toLowerCase();
-
-      if (text === cleanOnKey) {
-        await setDeviceState(d.id, d.pin, "on", false);
-        matched = true;
-        break; 
-      } else if (text === cleanOffKey) {
-        await setDeviceState(d.id, d.pin, "off", false);
-        matched = true;
-        break; 
+      if (selectEl)
+      {
+        selectEl.innerHTML +=
+          `<option value="${d.id}">
+            ${d.name}
+          </option>`;
       }
     }
-    
-    if(!matched && voiceText) {
-      voiceText.innerHTML = `ได้ยิน: "${text}" (คำสั่งไม่ตรงกับอุปกรณ์ใดๆ)`;
-    }
-  };
+  );
 
-  recognition.onerror = (event) => {
-    if (voiceText) voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณากดลองอีกครั้ง";
-  };
-
-  recognition.onend = () => {
-    if (voiceBtn) {
-      voiceBtn.classList.remove("listening");
-      voiceBtn.innerHTML = "🎤 เริ่มฟังคำสั่ง";
-    }
-  };
-
-  try {
-    recognition.start();
-  } catch(e) { console.error(e); }
-};
-
-window.addDevice = async () => {
-  const name = document.getElementById("deviceName").value.trim();
-  const on = document.getElementById("onKey").value.trim();
-  const off = document.getElementById("offKey").value.trim();
-  const pin = document.getElementById("pinInput").value.trim();
-  
-  if (!name || !on || !off || !pin) { alert("กรอกข้อมูลให้ครบ"); return; }
-  const { error } = await supabase.from("devices").insert([{
-    user_id: currentUser.id,
-    name, on_key: on, off_key: off, pin
-  }]);
-  if (error) { alert(error.message); return; }
-  
-  document.getElementById("deviceName").value = ""; 
-  document.getElementById("onKey").value = ""; 
-  document.getElementById("offKey").value = ""; 
-  document.getElementById("pinInput").value = "";
-  await loadDevices();
-  await loadSchedules();
-};
-
-window.deleteDevice = async (id) => {
-  if (!confirm("ลบอุปกรณ์นี้?")) return;
-  await supabase.from("schedules").delete().eq("device_id", id);
-  await supabase.from("devices").delete().eq("id", id);
-  
-  if (deviceModes[id]) {
-    delete deviceModes[id];
-    localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
+  if (
+    selectEl &&
+    currentSelectVal
+  )
+  {
+    selectEl.value =
+      currentSelectVal;
   }
-  
-  await loadDevices();
-  await loadSchedules();
-};
+}
 
-// 🔥 [แก้ไขจุดหลัก] สั่งให้รีเซ็ต action ล่าสุด และทำงานทันทีที่บันทึกสำเร็จ
-window.saveSchedule = async () => {
-  const deviceId = document.getElementById("deviceSelect").value;
-  const onTime = document.getElementById("timeOn").value;
-  const offTime = document.getElementById("timeOff").value;
-  const statusEl = document.getElementById("scheduleStatus");
-  if (!deviceId || !onTime || !offTime) { alert("กรอกข้อมูลให้ครบ"); return; }
+// ==================================================
+// RENDER SCHEDULE
+// ==================================================
 
-  await supabase.from("schedules").delete().eq("device_id", deviceId);
+function renderScheduleList()
+{
+  const list =
+    document.getElementById(
+      "scheduleList"
+    );
 
-  const { error } = await supabase.from("schedules").insert([{
-    device_id: deviceId,
-    time_on: onTime,
-    time_off: offTime
-  }]);
-  if (error) { alert(error.message); return; }
+  if (!list)
+    return;
 
-  if (statusEl) {
-    statusEl.innerHTML = "✅ บันทึกเวลาเรียบร้อย";
-    setTimeout(() => { statusEl.innerHTML = ""; }, 3000);
+  if (!schedules.length)
+  {
+    list.innerHTML = "";
+    return;
   }
 
-  // เคลียร์ค่าตัวแปรจำรอบการรัน เพื่อเปิดทางให้ลอจิกรันได้ทันที
-  lastScheduleAction = "";
-  
-  // อัปเดตรีโหลดตารางเวลาใหม่
+  list.innerHTML =
+    `<div style="
+      margin-top:12px;
+      font-size:13px;
+      color:#555;
+      font-weight:600">
+      รายการเวลาที่ตั้งไว้
+    </div>`;
+
+  schedules.forEach(
+    s =>
+    {
+      const name =
+        s.devices?.name ||
+        "ไม่ทราบชื่อ";
+
+      list.innerHTML += `
+        <div class="schedule-item">
+          <span>
+            🔧 ${name}
+            — เปิด ${s.time_on}
+            / ปิด ${s.time_off}
+          </span>
+
+          <button
+            class="del"
+            onclick="deleteSchedule('${s.device_id}')">
+            🗑
+          </button>
+        </div>
+      `;
+    }
+  );
+}
+
+// ==================================================
+// CURRENT TIME
+// ==================================================
+
+function getCurrentTime()
+{
+  const now =
+    new Date();
+
+  return (
+    now.getHours()
+      .toString()
+      .padStart(2, "0")
+    +
+    ":" +
+    now.getMinutes()
+      .toString()
+      .padStart(2, "0")
+  );
+}
+
+// ==================================================
+// CONVERT TIME TO MINUTES
+// ==================================================
+
+function timeToMinutes(
+  time
+)
+{
+  if (!time)
+    return -1;
+
+  const clean =
+    time.substring(0, 5);
+
+  const [
+    h,
+    m
+  ] =
+    clean
+      .split(":")
+      .map(Number);
+
+  return (
+    h * 60 + m
+  );
+}
+
+// ==================================================
+// CHECK IF CURRENT TIME IS IN SCHEDULE
+// ==================================================
+
+function isTimeInSchedule(
+  current,
+  timeOn,
+  timeOff
+)
+{
+  const now =
+    timeToMinutes(
+      current
+    );
+
+  const on =
+    timeToMinutes(
+      timeOn
+    );
+
+  const off =
+    timeToMinutes(
+      timeOff
+    );
+
+  if (
+    now < 0 ||
+    on < 0 ||
+    off < 0
+  )
+  {
+    return false;
+  }
+
+  // เวลาเดียวกัน
+  if (on === off)
+  {
+    return false;
+  }
+
+  // ปกติ เช่น 14:00 -> 14:30
+  if (on < off)
+  {
+    return (
+      now >= on &&
+      now < off
+    );
+  }
+
+  // ข้ามเที่ยงคืน เช่น
+  // 23:00 -> 02:00
+  return (
+    now >= on ||
+    now < off
+  );
+}
+
+// ==================================================
+// SET DEVICE STATE
+// ==================================================
+
+async function setDeviceState(
+  id,
+  pin,
+  targetState,
+  fromSchedule = false
+)
+{
+  const btn =
+    document.getElementById(
+      "btn-" + id
+    );
+
+  if (btn)
+  {
+    if (
+      targetState === "on"
+    )
+    {
+      btn.className =
+        "device on";
+
+      btn.innerHTML =
+        "ON";
+    }
+    else
+    {
+      btn.className =
+        "device off";
+
+      btn.innerHTML =
+        "OFF";
+    }
+  }
+
+  // ==============================================
+  // WebSocket
+  // ==============================================
+
+  if (
+    ws &&
+    ws.readyState === WebSocket.OPEN
+  )
+  {
+    const command = {
+      type: "control",
+      device: String(pin),
+      status: targetState,
+      isSchedule: fromSchedule
+    };
+
+    console.log(
+      "[SEND]",
+      command
+    );
+
+    ws.send(
+      JSON.stringify(
+        command
+      )
+    );
+  }
+  else
+  {
+    console.warn(
+      "[WS] ยังไม่ได้เชื่อมต่อ"
+    );
+  }
+
+  // ==============================================
+  // Database
+  // ==============================================
+
+  const {
+    error
+  } =
+    await supabase
+      .from(
+        "device_status_logs"
+      )
+      .insert([
+        {
+          device_id: id,
+          status:
+            targetState === "on"
+        }
+      ]);
+
+  if (error)
+  {
+    console.error(
+      "บันทึกประวัติไม่สำเร็จ",
+      error
+    );
+  }
+}
+
+// ==================================================
+// MANUAL TOGGLE
+// ==================================================
+
+window.toggleDevice =
+async (
+  id,
+  pin
+) =>
+{
+  if (
+    globalMode === "auto"
+  )
+  {
+    alert(
+      "ระบบอยู่ในโหมด Auto ไม่สามารถควบคุมด้วยตนเองได้"
+    );
+
+    return;
+  }
+
+  const btn =
+    document.getElementById(
+      "btn-" + id
+    );
+
+  if (!btn)
+    return;
+
+  const targetState =
+    btn.classList.contains(
+      "on"
+    )
+      ? "off"
+      : "on";
+
+  await setDeviceState(
+    id,
+    pin,
+    targetState,
+    false
+  );
+};
+
+// ==================================================
+// SCHEDULE CHECK
+// ==================================================
+
+async function checkSchedules()
+{
+  if (!devices.length)
+    return;
+
+  const currentTime =
+    getCurrentTime();
+
+  console.log(
+    "[SCHEDULER]",
+    currentTime
+  );
+
+  for (
+    const s of schedules
+  )
+  {
+    const device =
+      s.devices;
+
+    if (!device)
+      continue;
+
+    // ต้องเปิด Schedule ของอุปกรณ์ก่อน
+    const currentMode =
+      deviceModes[
+        device.id
+      ] || "manual";
+
+    if (
+      currentMode !== "auto"
+    )
+    {
+      continue;
+    }
+
+    const timeOn =
+      s.time_on
+        ? s.time_on.substring(
+            0,
+            5
+          )
+        : "";
+
+    const timeOff =
+      s.time_off
+        ? s.time_off.substring(
+            0,
+            5
+          )
+        : "";
+
+    if (
+      !timeOn ||
+      !timeOff
+    )
+    {
+      continue;
+    }
+
+    const key =
+      device.id +
+      "_" +
+      currentTime;
+
+    // ==========================================
+    // ตรวจว่าอยู่ในช่วงเวลาทำงานหรือไม่
+    // ==========================================
+
+    const active =
+      isTimeInSchedule(
+        currentTime,
+        timeOn,
+        timeOff
+      );
+
+    // ==========================================
+    // ON
+    // ==========================================
+
+    if (
+      active &&
+      lastScheduleAction[
+        device.id
+      ] !== key + "_on"
+    )
+    {
+      lastScheduleAction[
+        device.id
+      ] = key + "_on";
+
+      console.log(
+        `[SCHEDULE] ${device.name} -> ON`
+      );
+
+      await setDeviceState(
+        device.id,
+        device.pin,
+        "on",
+        true
+      );
+
+      showSchedulerStatus(
+        `⏰ เปิด ${device.name} อัตโนมัติ`
+      );
+    }
+
+    // ==========================================
+    // OFF
+    // ==========================================
+
+    if (
+      !active &&
+      lastScheduleAction[
+        device.id
+      ] !== key + "_off"
+    )
+    {
+      // ป้องกันไม่ให้ OFF ทุกครั้ง
+      // ต้องเคยมีการ ON จาก Schedule ก่อน
+
+      const previous =
+        lastScheduleAction[
+          device.id
+        ];
+
+      if (
+        previous &&
+        previous.endsWith(
+          "_on"
+        )
+      )
+      {
+        lastScheduleAction[
+          device.id
+        ] = key + "_off";
+
+        console.log(
+          `[SCHEDULE] ${device.name} -> OFF`
+        );
+
+        await setDeviceState(
+          device.id,
+          device.pin,
+          "off",
+          true
+        );
+
+        showSchedulerStatus(
+          `⏰ ปิด ${device.name} อัตโนมัติ`
+        );
+      }
+    }
+  }
+}
+
+// ==================================================
+// START SCHEDULER
+// ==================================================
+
+function startScheduler()
+{
+  if (
+    schedulerInterval
+  )
+  {
+    clearInterval(
+      schedulerInterval
+    );
+  }
+
+  // ตรวจทันที
+  checkSchedules();
+
+  // ตรวจทุก 1 วินาที
+  schedulerInterval =
+    setInterval(
+      () =>
+      {
+        checkSchedules();
+      },
+      1000
+    );
+}
+
+// ==================================================
+// SCHEDULER STATUS
+// ==================================================
+
+function showSchedulerStatus(
+  msg
+)
+{
+  const el =
+    document.getElementById(
+      "schedulerStatus"
+    );
+
+  if (!el)
+    return;
+
+  el.textContent =
+    msg;
+
+  el.style.opacity =
+    "1";
+
+  setTimeout(
+    () =>
+    {
+      el.style.opacity =
+        "0";
+    },
+    3000
+  );
+}
+
+// ==================================================
+// SAVE SCHEDULE
+// ==================================================
+
+window.saveSchedule =
+async () =>
+{
+  const deviceId =
+    document.getElementById(
+      "deviceSelect"
+    ).value;
+
+  const onTime =
+    document.getElementById(
+      "timeOn"
+    ).value;
+
+  const offTime =
+    document.getElementById(
+      "timeOff"
+    ).value;
+
+  const statusEl =
+    document.getElementById(
+      "scheduleStatus"
+    );
+
+  if (
+    !deviceId ||
+    !onTime ||
+    !offTime
+  )
+  {
+    alert(
+      "กรอกข้อมูลให้ครบ"
+    );
+
+    return;
+  }
+
+  // ไม่อนุญาตเวลาเดียวกัน
+  if (
+    onTime === offTime
+  )
+  {
+    alert(
+      "เวลาเปิดและเวลาปิดต้องไม่เหมือนกัน"
+    );
+
+    return;
+  }
+
+  // ลบ Schedule เดิม
+  const {
+    error: deleteError
+  } =
+    await supabase
+      .from("schedules")
+      .delete()
+      .eq(
+        "device_id",
+        deviceId
+      );
+
+  if (deleteError)
+  {
+    console.error(
+      deleteError
+    );
+
+    alert(
+      "ลบตารางเวลาเดิมไม่สำเร็จ"
+    );
+
+    return;
+  }
+
+  // บันทึกใหม่
+  const {
+    error
+  } =
+    await supabase
+      .from("schedules")
+      .insert([
+        {
+          device_id:
+            deviceId,
+          time_on:
+            onTime,
+          time_off:
+            offTime
+        }
+      ]);
+
+  if (error)
+  {
+    console.error(
+      error
+    );
+
+    alert(
+      error.message
+    );
+
+    return;
+  }
+
+  // รีเซ็ตสถานะ Scheduler
+  delete lastScheduleAction[
+    deviceId
+  ];
+
+  if (statusEl)
+  {
+    statusEl.innerHTML =
+      "✅ บันทึกเวลาเรียบร้อย";
+
+    setTimeout(
+      () =>
+      {
+        statusEl.innerHTML =
+          "";
+      },
+      3000
+    );
+  }
+
   await loadSchedules();
-  
-  // สั่งให้เช็กตารางและสั่งอุปกรณ์ ณ วินาทีนี้ทันที ไม่ต้องรอนาทีถัดไป
+
+  console.log(
+    "[SCHEDULE] Saved:",
+    onTime,
+    "->",
+    offTime
+  );
+
+  // ตรวจทันที
   await checkSchedules();
 };
 
-window.deleteSchedule = async (deviceId) => {
-  if (!confirm("ลบตารางเวลานี้?")) return;
-  await supabase.from("schedules").delete().eq("device_id", deviceId);
-  await loadSchedules();
-};
+// ==================================================
+// DELETE SCHEDULE
+// ==================================================
 
-function updateGlobalModeUI() {
-  const autoBtn = document.getElementById("globalModeAutoBtn");
-  const manualBtn = document.getElementById("globalModeManualBtn");
-  const modeText = document.getElementById("globalModeText");
-  
-  if (globalMode === "auto") {
-    if(autoBtn) autoBtn.style.background = "#2ecc71"; 
-    if(manualBtn) manualBtn.style.background = "#7f8c8d"; 
-    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto (ตารางเวลาทำงานได้)";
-  } else {
-    if(autoBtn) autoBtn.style.background = "#7f8c8d"; 
-    if(manualBtn) manualBtn.style.background = "#e67e22"; 
-    if(modeText) modeText.innerHTML = "โหมดภาพรวม: 🕹 Manual (คุมนิ้วอิสระ)";
-  }
-}
-
-window.changeGlobalMode = (mode) => {
-  globalMode = mode;
-  localStorage.setItem("globalMode", globalMode);
-  updateGlobalModeUI();
-  
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: "control", mode: mode }));
-  }
-  
-  devices.forEach(d => {
-    const btn = document.getElementById("btn-" + d.id);
-    if(btn) {
-      if (globalMode === "auto") {
-        btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
-      } else {
-        btn.style.cssText = "";
-      }
-    }
-  });
-
-  showSchedulerStatus(`เปลี่ยนโหมดภาพรวมเป็น ${mode === 'auto' ? 'Auto' : 'Manual'}`);
-};
-
-function updateDeviceScheduleUI() {
-  const deviceId = document.getElementById("deviceSelect").value;
-  const autoBtn = document.getElementById("scheduleAutoBtn");
-  const manualBtn = document.getElementById("scheduleManualBtn");
-  const modeText = document.getElementById("deviceScheduleModeText");
-  
-  if (!deviceId) {
-    autoBtn.style.background = "#7f8c8d";
-    manualBtn.style.background = "#7f8c8d";
-    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: -";
+window.deleteSchedule =
+async (
+  deviceId
+) =>
+{
+  if (
+    !confirm(
+      "ลบตารางเวลานี้?"
+    )
+  )
+  {
     return;
   }
 
-  const currentMode = deviceModes[deviceId] || "manual";
+  const {
+    error
+  } =
+    await supabase
+      .from("schedules")
+      .delete()
+      .eq(
+        "device_id",
+        deviceId
+      );
 
-  if (currentMode === "auto") {
-    autoBtn.style.background = "#3498db"; 
-    manualBtn.style.background = "#7f8c8d"; 
-    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: เปิดใช้งานตารางเวลา";
-  } else {
-    autoBtn.style.background = "#7f8c8d"; 
-    manualBtn.style.background = "#e67e22"; 
-    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: ปิดใช้งานตารางเวลา";
+  if (error)
+  {
+    alert(
+      error.message
+    );
+
+    return;
+  }
+
+  delete lastScheduleAction[
+    deviceId
+  ];
+
+  await loadSchedules();
+
+  showSchedulerStatus(
+    "🗑 ลบตารางเวลาแล้ว"
+  );
+};
+
+// ==================================================
+// GLOBAL MODE UI
+// ==================================================
+
+function updateGlobalModeUI()
+{
+  const autoBtn =
+    document.getElementById(
+      "globalModeAutoBtn"
+    );
+
+  const manualBtn =
+    document.getElementById(
+      "globalModeManualBtn"
+    );
+
+  const modeText =
+    document.getElementById(
+      "globalModeText"
+    );
+
+  if (
+    globalMode === "auto"
+  )
+  {
+    if (autoBtn)
+      autoBtn.style.background =
+        "#2ecc71";
+
+    if (manualBtn)
+      manualBtn.style.background =
+        "#7f8c8d";
+
+    if (modeText)
+      modeText.innerHTML =
+        "โหมดภาพรวม: 🤖 Auto";
+  }
+  else
+  {
+    if (autoBtn)
+      autoBtn.style.background =
+        "#7f8c8d";
+
+    if (manualBtn)
+      manualBtn.style.background =
+        "#e67e22";
+
+    if (modeText)
+      modeText.innerHTML =
+        "โหมดภาพรวม: 🕹 Manual";
+  }
+
+  devices.forEach(
+    d =>
+    {
+      const btn =
+        document.getElementById(
+          "btn-" + d.id
+        );
+
+      if (!btn)
+        return;
+
+      if (
+        globalMode === "auto"
+      )
+      {
+        btn.style.cssText =
+          "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
+      }
+      else
+      {
+        btn.style.cssText =
+          "";
+      }
+    }
+  );
+}
+
+// ==================================================
+// CHANGE GLOBAL MODE
+// ==================================================
+
+window.changeGlobalMode =
+mode =>
+{
+  globalMode =
+    mode;
+
+  localStorage.setItem(
+    "globalMode",
+    globalMode
+  );
+
+  updateGlobalModeUI();
+
+  if (
+    ws &&
+    ws.readyState === WebSocket.OPEN
+  )
+  {
+    ws.send(
+      JSON.stringify({
+        type: "control",
+        mode: mode
+      })
+    );
+  }
+
+  showSchedulerStatus(
+    `เปลี่ยนโหมดเป็น ${
+      mode === "auto"
+        ? "Auto"
+        : "Manual"
+    }`
+  );
+};
+
+// ==================================================
+// DEVICE SCHEDULE UI
+// ==================================================
+
+function updateDeviceScheduleUI()
+{
+  const deviceId =
+    document.getElementById(
+      "deviceSelect"
+    ).value;
+
+  const autoBtn =
+    document.getElementById(
+      "scheduleAutoBtn"
+    );
+
+  const manualBtn =
+    document.getElementById(
+      "scheduleManualBtn"
+    );
+
+  const modeText =
+    document.getElementById(
+      "deviceScheduleModeText"
+    );
+
+  if (!deviceId)
+  {
+    autoBtn.style.background =
+      "#7f8c8d";
+
+    manualBtn.style.background =
+      "#7f8c8d";
+
+    modeText.innerHTML =
+      "สถานะตารางเวลาอุปกรณ์: -";
+
+    return;
+  }
+
+  const currentMode =
+    deviceModes[
+      deviceId
+    ] || "manual";
+
+  if (
+    currentMode === "auto"
+  )
+  {
+    autoBtn.style.background =
+      "#3498db";
+
+    manualBtn.style.background =
+      "#7f8c8d";
+
+    modeText.innerHTML =
+      "สถานะตารางเวลาอุปกรณ์: เปิดใช้งานตารางเวลา";
+  }
+  else
+  {
+    autoBtn.style.background =
+      "#7f8c8d";
+
+    manualBtn.style.background =
+      "#e67e22";
+
+    modeText.innerHTML =
+      "สถานะตารางเวลาอุปกรณ์: ปิดใช้งานตารางเวลา";
   }
 }
 
-// 🔥 [แก้ไขจุดหลัก] ดึงใหม่จาก Database แทนที่จะไปแกะคลาสทับซั่วเซต เพื่อไม่ให้สถานะค้างเอ๋อ
-window.changeDeviceScheduleMode = async (mode) => {
-  const deviceId = document.getElementById("deviceSelect").value;
-  if (!deviceId) { alert("กรุณาเลือกอุปกรณ์ก่อนครับ"); return; }
-  
-  deviceModes[deviceId] = mode;
-  localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
+// ==================================================
+// CHANGE DEVICE SCHEDULE MODE
+// ==================================================
+
+window.changeDeviceScheduleMode =
+async mode =>
+{
+  const deviceId =
+    document.getElementById(
+      "deviceSelect"
+    ).value;
+
+  if (!deviceId)
+  {
+    alert(
+      "กรุณาเลือกอุปกรณ์ก่อน"
+    );
+
+    return;
+  }
+
+  deviceModes[
+    deviceId
+  ] = mode;
+
+  localStorage.setItem(
+    "deviceModes",
+    JSON.stringify(
+      deviceModes
+    )
+  );
+
   updateDeviceScheduleUI();
-  
-  // โหลดอุปกรณ์เพื่ออัปเดตสถานะที่แท้จริงกลับมาลง UI
-  await loadDevices();
-  
-  // หากเปลี่ยนเป็นโหมด auto ให้ลองประเมินเวลาสั่งงานของนาทีปัจจุบันทันที
-  if (mode === "auto") {
-    lastScheduleAction = "";
+
+  renderDevices();
+
+  // เปิด Schedule
+  if (
+    mode === "auto"
+  )
+  {
+    delete lastScheduleAction[
+      deviceId
+    ];
+
     await checkSchedules();
+
+    showSchedulerStatus(
+      "⏰ เปิดใช้งานตารางเวลาแล้ว"
+    );
+  }
+  else
+  {
+    // ปิด Schedule
+    // ถ้ากำลัง Lock อยู่
+    // เว็บจะไม่ส่ง OFF ทันที
+    // เพื่อไม่ให้เกิดอาการดับเอง
+
+    delete lastScheduleAction[
+      deviceId
+    ];
+
+    showSchedulerStatus(
+      "🕹 ปิดใช้งานตารางเวลาแล้ว"
+    );
   }
 };
 
-function connectWS() {
-  ws = new WebSocket("wss://smartfarm-web.onrender.com");
-  
-  ws.onopen = () => { 
-    console.log("เชื่อมต่อ WebSocket สำเร็จ");
-    ws.send(JSON.stringify({ type: "web" })); 
+// ==================================================
+// WEBSOCKET
+// ==================================================
+
+function connectWS()
+{
+  console.log(
+    "[WS] Connecting..."
+  );
+
+  ws =
+    new WebSocket(
+      "wss://smartfarm-web.onrender.com"
+    );
+
+  ws.onopen =
+  () =>
+  {
+    console.log(
+      "[WS] Connected"
+    );
+
+    // บอก Server ว่านี่คือ Web
+    ws.send(
+      JSON.stringify({
+        type: "web"
+      })
+    );
+
+    // สำคัญ:
+    // ส่ง Global Mode ปัจจุบันให้ ESP32
+    setTimeout(
+      () =>
+      {
+        if (
+          ws &&
+          ws.readyState ===
+            WebSocket.OPEN
+        )
+        {
+          ws.send(
+            JSON.stringify({
+              type: "control",
+              mode: globalMode
+            })
+          );
+
+          console.log(
+            "[WS] Sync mode:",
+            globalMode
+          );
+        }
+      },
+      500
+    );
   };
-  
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === "status" || data.type === "sensor") {
-        
-        if (data.temperature !== undefined) {
-          const tempVal = parseFloat(data.temperature);
-          document.getElementById("displayTemp").innerHTML = tempVal > 0 ? tempVal.toFixed(1) + " °C" : "-- °C";
-        }
-        if (data.food_level !== undefined) {
-          document.getElementById("displayFood").innerHTML = data.food_level + " %";
-        }
-        if (data.water_level !== undefined) {
-          document.getElementById("displayWater").innerHTML = data.water_level + " %";
+
+  ws.onmessage =
+  event =>
+  {
+    try
+    {
+      const data =
+        JSON.parse(
+          event.data
+        );
+
+      console.log(
+        "[WS RECEIVE]",
+        data
+      );
+
+      // ========================================
+      // SENSOR / STATUS
+      // ========================================
+
+      if (
+        data.type ===
+          "status" ||
+        data.type ===
+          "sensor"
+      )
+      {
+        // Temperature
+        if (
+          data.temperature !==
+          undefined
+        )
+        {
+          const temp =
+            parseFloat(
+              data.temperature
+            );
+
+          document.getElementById(
+            "displayTemp"
+          ).innerHTML =
+            temp > 0
+              ? temp.toFixed(1) +
+                " °C"
+              : "-- °C";
         }
 
-        if (data.mode && data.mode !== globalMode) {
-          globalMode = data.mode;
-          localStorage.setItem("globalMode", globalMode);
-          updateGlobalModeUI();
+        // Food
+        if (
+          data.food_level !==
+          undefined
+        )
+        {
+          document.getElementById(
+            "displayFood"
+          ).innerHTML =
+            data.food_level +
+            " %";
         }
 
-        devices.forEach(d => {
-          const btn = document.getElementById("btn-" + d.id);
-          if (!btn) return;
+        // Water
+        if (
+          data.water_level !==
+          undefined
+        )
+        {
+          document.getElementById(
+            "displayWater"
+          ).innerHTML =
+            data.water_level +
+            " %";
+        }
 
-          let isDeviceOn = false;
-          // 🔥 ใช้ == ป้องกัน Type Mismatch ระหว่าง string และ number เพื่อความทนทาน
-          if (d.pin == 17)       isDeviceOn = data.light;  
-          else if (d.pin == 16)  isDeviceOn = data.fan1;   
-          else if (d.pin == 5)   isDeviceOn = data.fan2;   
-          else if (d.pin == 21)  isDeviceOn = data.pump1;  
-          else if (d.pin == 19)  isDeviceOn = data.pump2;  
-          else if (d.pin == 18)  isDeviceOn = data.motor !== undefined ? data.motor : data.status_motor;  
-          else return; 
+        // Relay Status
+        devices.forEach(
+          d =>
+          {
+            const btn =
+              document.getElementById(
+                "btn-" + d.id
+              );
 
-          if (globalMode === "auto") {
-            btn.style.cssText = "opacity: 0.5; cursor: not-allowed; filter: grayscale(50%);";
-          } else {
-            btn.style.cssText = "";
+            if (!btn)
+              return;
+
+            let isDeviceOn =
+              false;
+
+            const pin =
+              Number(
+                d.pin
+              );
+
+            if (
+              pin === 17
+            )
+            {
+              isDeviceOn =
+                data.light ===
+                true;
+            }
+
+            else if (
+              pin === 16
+            )
+            {
+              isDeviceOn =
+                data.fan1 ===
+                true;
+            }
+
+            else if (
+              pin === 5
+            )
+            {
+              isDeviceOn =
+                data.fan2 ===
+                true;
+            }
+
+            else if (
+              pin === 21
+            )
+            {
+              isDeviceOn =
+                data.pump1 ===
+                true;
+            }
+
+            else if (
+              pin === 19
+            )
+            {
+              isDeviceOn =
+                data.pump2 ===
+                true;
+            }
+
+            else if (
+              pin === 18
+            )
+            {
+              isDeviceOn =
+                data.motor ===
+                true;
+            }
+            else
+            {
+              return;
+            }
+
+            if (
+              isDeviceOn
+            )
+            {
+              btn.className =
+                "device on";
+
+              btn.innerHTML =
+                "ON";
+            }
+            else
+            {
+              btn.className =
+                "device off";
+
+              btn.innerHTML =
+                "OFF";
+            }
+
+            if (
+              globalMode ===
+              "auto"
+            )
+            {
+              btn.style.cssText =
+                "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
+            }
+            else
+            {
+              btn.style.cssText =
+                "";
+            }
           }
-
-          if (isDeviceOn) {
-            btn.className = "device on";
-            btn.innerHTML = "ON";
-          } else {
-            btn.className = "device off";
-            btn.innerHTML = "OFF";
-          }
-        });
+        );
       }
-    } catch (e) { 
-      console.error("เกิดข้อผิดพลาดในการประมวลผลข้อมูล WebSocket:", e); 
+
+      // ========================================
+      // MODE STATUS
+      // ========================================
+
+      if (
+        data.type ===
+        "mode_status"
+      )
+      {
+        if (
+          data.mode ===
+          "auto" ||
+          data.mode ===
+          "manual"
+        )
+        {
+          globalMode =
+            data.mode;
+
+          localStorage.setItem(
+            "globalMode",
+            globalMode
+          );
+
+          updateGlobalModeUI();
+
+          console.log(
+            "[MODE SYNC]",
+            globalMode
+          );
+        }
+      }
+
+    }
+    catch (e)
+    {
+      console.error(
+        "[WS] JSON Error",
+        e
+      );
     }
   };
-  
-  ws.onclose = () => { setTimeout(connectWS, 5000); };
+
+  ws.onerror =
+  error =>
+  {
+    console.error(
+      "[WS ERROR]",
+      error
+    );
+  };
+
+  ws.onclose =
+  () =>
+  {
+    console.log(
+      "[WS] Disconnected"
+    );
+
+    setTimeout(
+      connectWS,
+      5000
+    );
+  };
 }
 
-async function logout() {
-  if (schedulerInterval) clearInterval(schedulerInterval);
+// ==================================================
+// ADD DEVICE
+// ==================================================
+
+window.addDevice =
+async () =>
+{
+  const name =
+    document.getElementById(
+      "deviceName"
+    ).value.trim();
+
+  const on =
+    document.getElementById(
+      "onKey"
+    ).value.trim();
+
+  const off =
+    document.getElementById(
+      "offKey"
+    ).value.trim();
+
+  const pin =
+    document.getElementById(
+      "pinInput"
+    ).value.trim();
+
+  if (
+    !name ||
+    !on ||
+    !off ||
+    !pin
+  )
+  {
+    alert(
+      "กรอกข้อมูลให้ครบ"
+    );
+
+    return;
+  }
+
+  const {
+    error
+  } =
+    await supabase
+      .from("devices")
+      .insert([
+        {
+          user_id:
+            currentUser.id,
+          name,
+          on_key:
+            on,
+          off_key:
+            off,
+          pin
+        }
+      ]);
+
+  if (error)
+  {
+    alert(
+      error.message
+    );
+
+    return;
+  }
+
+  document.getElementById(
+    "deviceName"
+  ).value = "";
+
+  document.getElementById(
+    "onKey"
+  ).value = "";
+
+  document.getElementById(
+    "offKey"
+  ).value = "";
+
+  document.getElementById(
+    "pinInput"
+  ).value = "";
+
+  await loadDevices();
+
+  await loadSchedules();
+};
+
+// ==================================================
+// DELETE DEVICE
+// ==================================================
+
+window.deleteDevice =
+async id =>
+{
+  if (
+    !confirm(
+      "ลบอุปกรณ์นี้?"
+    )
+  )
+  {
+    return;
+  }
+
+  await supabase
+    .from("schedules")
+    .delete()
+    .eq(
+      "device_id",
+      id
+    );
+
+  await supabase
+    .from("devices")
+    .delete()
+    .eq(
+      "id",
+      id
+    );
+
+  delete deviceModes[
+    id
+  ];
+
+  localStorage.setItem(
+    "deviceModes",
+    JSON.stringify(
+      deviceModes
+    )
+  );
+
+  delete lastScheduleAction[
+    id
+  ];
+
+  await loadDevices();
+
+  await loadSchedules();
+};
+
+// ==================================================
+// VOICE
+// ==================================================
+
+window.startVoice =
+async () =>
+{
+  const voiceBtn =
+    document.getElementById(
+      "voiceButton"
+    );
+
+  const voiceText =
+    document.getElementById(
+      "voiceText"
+    );
+
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition ||
+    window.mozSpeechRecognition ||
+    window.msSpeechRecognition;
+
+  if (!SpeechRecognition)
+  {
+    voiceText.innerHTML =
+      "❌ อุปกรณ์ไม่รองรับการสั่งงานด้วยเสียง";
+
+    return;
+  }
+
+  try
+  {
+    await navigator.mediaDevices
+      .getUserMedia({
+        audio: true
+      });
+  }
+  catch (err)
+  {
+    voiceText.innerHTML =
+      "❌ กรุณาอนุญาตสิทธิ์ไมโครโฟน";
+
+    return;
+  }
+
+  if (recognition)
+  {
+    try
+    {
+      recognition.abort();
+    }
+    catch (e) {}
+  }
+
+  recognition =
+    new SpeechRecognition();
+
+  recognition.lang =
+    "th-TH";
+
+  recognition.interimResults =
+    false;
+
+  recognition.maxAlternatives =
+    1;
+
+  recognition.continuous =
+    false;
+
+  recognition.onstart =
+  () =>
+  {
+    voiceBtn.classList.add(
+      "listening"
+    );
+
+    voiceBtn.innerHTML =
+      "🔊 กำลังฟังคำสั่งเสียง...";
+
+    voiceText.innerHTML =
+      "พูดคำสั่งเปิด/ปิดอุปกรณ์";
+  };
+
+  recognition.onresult =
+  async event =>
+  {
+    if (
+      !event.results ||
+      !event.results.length
+    )
+    {
+      return;
+    }
+
+    const text =
+      event.results[0][0]
+        .transcript
+        .trim()
+        .toLowerCase();
+
+    voiceText.innerHTML =
+      `ได้ยินเสียง: "${text}"`;
+
+    if (
+      globalMode ===
+      "auto"
+    )
+    {
+      voiceText.innerHTML =
+        "⚠️ ไม่สามารถสั่งงานด้วยเสียงในโหมด Auto";
+
+      return;
+    }
+
+    let matched =
+      false;
+
+    for (
+      const d of devices
+    )
+    {
+      const onKey =
+        d.on_key
+          .trim()
+          .toLowerCase();
+
+      const offKey =
+        d.off_key
+          .trim()
+          .toLowerCase();
+
+      if (
+        text ===
+        onKey
+      )
+      {
+        await setDeviceState(
+          d.id,
+          d.pin,
+          "on",
+          false
+        );
+
+        matched =
+          true;
+
+        break;
+      }
+
+      if (
+        text ===
+        offKey
+      )
+      {
+        await setDeviceState(
+          d.id,
+          d.pin,
+          "off",
+          false
+        );
+
+        matched =
+          true;
+
+        break;
+      }
+    }
+
+    if (
+      !matched
+    )
+    {
+      voiceText.innerHTML =
+        `ได้ยิน: "${text}" ไม่พบคำสั่ง`;
+    }
+  };
+
+  recognition.onerror =
+  () =>
+  {
+    voiceText.innerHTML =
+      "❌ เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
+  };
+
+  recognition.onend =
+  () =>
+  {
+    voiceBtn.classList.remove(
+      "listening"
+    );
+
+    voiceBtn.innerHTML =
+      "🎤 เริ่มฟังคำสั่ง";
+  };
+
+  try
+  {
+    recognition.start();
+  }
+  catch (e)
+  {
+    console.error(e);
+  }
+};
+
+// ==================================================
+// LOGOUT
+// ==================================================
+
+async function logout()
+{
+  if (
+    schedulerInterval
+  )
+  {
+    clearInterval(
+      schedulerInterval
+    );
+  }
+
   await supabase.auth.signOut();
-  location.href = "index.html";
+
+  location.href =
+    "index.html";
 }
 
-function goPage2() { 
-  location.href = "history.html"; 
+// ==================================================
+// PAGE 2
+// ==================================================
+
+function goPage2()
+{
+  location.href =
+    "history.html";
 }
 
-window.logout = logout;
-window.goPage2 = goPage2;
-window.updateDeviceScheduleUI = updateDeviceScheduleUI;
-window.changeDeviceScheduleMode = changeDeviceScheduleMode;
-window.changeGlobalMode = changeGlobalMode;
+window.logout =
+  logout;
+
+window.goPage2 =
+  goPage2;
+
+window.updateDeviceScheduleUI =
+  updateDeviceScheduleUI;
+
+// ==================================================
+// START
+// ==================================================
 
 checkAuthAndLoad();
+
 </script>
 
 </body>
