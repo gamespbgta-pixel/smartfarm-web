@@ -1,674 +1,3 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Smart Farm Control</title>
-
-<link
-  href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap"
-  rel="stylesheet"
->
-
-<style>
-
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
-
-body{
-  margin:0;
-  font-family:'Kanit',sans-serif;
-  background:linear-gradient(135deg,#e8f5e9,#f1f8ff);
-}
-
-.header{
-  background:linear-gradient(135deg,#2ecc71,#27ae60);
-  color:white;
-  padding:15px 25px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.header-right{
-  display:flex;
-  gap:10px;
-}
-
-.page2btn,
-.logoutbtn{
-  border:none;
-  padding:10px 15px;
-  border-radius:10px;
-  cursor:pointer;
-  font-family:'Kanit',sans-serif;
-}
-
-.page2btn{
-  background:white;
-  color:#27ae60;
-}
-
-.logoutbtn{
-  background:#e74c3c;
-  color:white;
-}
-
-.container{
-  max-width:1300px;
-  margin:auto;
-  padding:25px;
-}
-
-.main{
-  display:grid;
-  grid-template-columns:2fr 1fr;
-  gap:25px;
-}
-
-.card{
-  background:white;
-  border-radius:20px;
-  padding:20px;
-  box-shadow:0 10px 25px rgba(0,0,0,.1);
-  margin-bottom:20px;
-}
-
-.card-header-flex{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:15px;
-  flex-wrap:wrap;
-  gap:10px;
-}
-
-.card-header-flex h2{
-  margin:0;
-}
-
-.mode-control-group{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.device-area{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:15px;
-}
-
-.slot{
-  border:2px dashed #ccc;
-  border-radius:20px;
-  min-height:280px;
-  text-align:center;
-  padding:15px;
-  position:relative;
-}
-
-.slot.empty{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#999;
-  min-height:250px;
-}
-
-.device{
-  width:90px;
-  height:90px;
-  border-radius:50%;
-  border:none;
-  font-size:18px;
-  font-weight:bold;
-  cursor:pointer;
-  margin:10px auto;
-  display:block;
-  transition:transform .1s ease;
-}
-
-.device:active{
-  transform:scale(.95);
-}
-
-.device.on{
-  background:#2ecc71;
-  color:white;
-}
-
-.device.off{
-  background:#e74c3c;
-  color:white;
-}
-
-.deleteBtn{
-  position:absolute;
-  top:10px;
-  right:10px;
-  border:none;
-  background:red;
-  color:white;
-  border-radius:50%;
-  width:30px;
-  height:30px;
-  cursor:pointer;
-}
-
-input,
-select{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border:1px solid #ddd;
-  border-radius:10px;
-  font-family:'Kanit',sans-serif;
-  font-size:16px;
-}
-
-button.action{
-  width:100%;
-  background:#27ae60;
-  color:white;
-  border:none;
-  padding:12px;
-  border-radius:10px;
-  cursor:pointer;
-  margin-top:12px;
-  font-family:'Kanit',sans-serif;
-  font-size:15px;
-}
-
-.voiceBtn{
-  background:#3498db !important;
-}
-
-.voiceBtn.listening{
-  background:#e67e22 !important;
-  animation:pulse 1.5s infinite;
-}
-
-@keyframes pulse{
-  0%{opacity:1;}
-  50%{opacity:.6;}
-  100%{opacity:1;}
-}
-
-.schedule-item{
-  background:#f0f9f0;
-  border:1px solid #c3e6cb;
-  border-radius:10px;
-  padding:10px;
-  margin-top:8px;
-  font-size:13px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.schedule-item .del{
-  background:none;
-  border:none;
-  color:#e74c3c;
-  cursor:pointer;
-  font-size:16px;
-  padding:0 5px;
-}
-
-#scheduleStatus{
-  margin-top:8px;
-  font-size:13px;
-}
-
-#voiceText{
-  margin-top:8px;
-  font-size:13px;
-  color:#555;
-  font-weight:600;
-}
-
-#schedulerStatus{
-  position:fixed;
-  bottom:15px;
-  right:15px;
-  background:#27ae60;
-  color:white;
-  padding:6px 12px;
-  border-radius:20px;
-  font-size:12px;
-  font-family:'Kanit',sans-serif;
-  opacity:0;
-  transition:opacity .5s;
-  pointer-events:none;
-  z-index:9999;
-}
-
-.schedule-form-group{
-  margin-top:15px;
-  display:flex;
-  flex-direction:column;
-}
-
-.schedule-form-group label{
-  font-size:15px;
-  color:#333;
-  font-weight:600;
-  margin-bottom:2px;
-}
-
-.schedule-form-group input[type="time"]{
-  width:100% !important;
-  max-width:100% !important;
-  margin-top:5px;
-  -webkit-appearance:none;
-}
-
-@media(max-width:900px){
-
-  .main{
-    grid-template-columns:1fr;
-  }
-
-  .device-area{
-    grid-template-columns:repeat(2,1fr);
-  }
-
-  .card-header-flex{
-    flex-direction:column;
-    align-items:flex-start;
-  }
-
-  .mode-control-group{
-    width:100%;
-    justify-content:space-between;
-  }
-
-}
-
-</style>
-</head>
-
-<body>
-
-<div class="header">
-
-  <div>
-    🌱 Smart Farm Control
-    <div id="user-display"></div>
-  </div>
-
-  <div class="header-right">
-    <button
-      class="page2btn"
-      onclick="goPage2()"
-    >
-      ประวัติ
-    </button>
-
-    <button
-      class="logoutbtn"
-      onclick="logout()"
-    >
-      ออกจากระบบ
-    </button>
-  </div>
-
-</div>
-
-<div id="schedulerStatus">
-  ⏱ ตรวจสอบเวลา...
-</div>
-
-<div class="container">
-
-<div class="main">
-
-<div>
-
-  <!-- SENSOR -->
-
-  <div
-    class="card"
-    style="background:linear-gradient(135deg,#34495e,#2c3e50);color:white;"
-  >
-
-    <h3
-      style="margin-top:0;color:#2ecc71;"
-    >
-      📊 ค่าจากเซนเซอร์ปัจจุบัน
-    </h3>
-
-    <div
-      style="
-        display:grid;
-        grid-template-columns:repeat(3,1fr);
-        gap:15px;
-        text-align:center;
-      "
-    >
-
-      <div
-        style="
-          background:rgba(255,255,255,.1);
-          padding:15px;
-          border-radius:12px;
-        "
-      >
-        <span style="font-size:30px;">🌡️</span>
-
-        <div style="font-size:14px;opacity:.8;">
-          อุณหภูมิ
-        </div>
-
-        <div
-          id="displayTemp"
-          style="font-size:24px;font-weight:bold;"
-        >
-          -- °C
-        </div>
-      </div>
-
-      <div
-        style="
-          background:rgba(255,255,255,.1);
-          padding:15px;
-          border-radius:12px;
-        "
-      >
-        <span style="font-size:30px;">🌾</span>
-
-        <div style="font-size:14px;opacity:.8;">
-          ระดับอาหาร
-        </div>
-
-        <div
-          id="displayFood"
-          style="font-size:24px;font-weight:bold;"
-        >
-          -- %
-        </div>
-      </div>
-
-      <div
-        style="
-          background:rgba(255,255,255,.1);
-          padding:15px;
-          border-radius:12px;
-        "
-      >
-        <span style="font-size:30px;">💧</span>
-
-        <div style="font-size:14px;opacity:.8;">
-          ระดับน้ำ
-        </div>
-
-        <div
-          id="displayWater"
-          style="font-size:24px;font-weight:bold;"
-        >
-          -- %
-        </div>
-      </div>
-
-    </div>
-
-  </div>
-
-  <!-- DEVICE -->
-
-  <div class="card">
-
-    <div class="card-header-flex">
-
-      <h2>
-        อุปกรณ์ทั้งหมด
-      </h2>
-
-      <div class="mode-control-group">
-
-        <div
-          id="globalModeText"
-          style="
-            font-size:14px;
-            font-weight:600;
-            color:#555;
-          "
-        >
-          โหมดภาพรวม: -
-        </div>
-
-        <button
-          id="globalModeAutoBtn"
-          class="action"
-          style="
-            margin-top:0;
-            padding:8px 12px;
-            background:#7f8c8d;
-            border-radius:8px;
-          "
-          onclick="changeGlobalMode('auto')"
-        >
-          🤖 Auto
-        </button>
-
-        <button
-          id="globalModeManualBtn"
-          class="action"
-          style="
-            margin-top:0;
-            padding:8px 12px;
-            background:#7f8c8d;
-            border-radius:8px;
-          "
-          onclick="changeGlobalMode('manual')"
-        >
-          🕹 Manual
-        </button>
-
-      </div>
-
-    </div>
-
-    <div
-      class="device-area"
-      id="deviceArea"
-    >
-
-      <div class="slot empty">ช่องที่ 1</div>
-      <div class="slot empty">ช่องที่ 2</div>
-      <div class="slot empty">ช่องที่ 3</div>
-      <div class="slot empty">ช่องที่ 4</div>
-      <div class="slot empty">ช่องที่ 5</div>
-      <div class="slot empty">ช่องที่ 6</div>
-      <div class="slot empty">ช่องที่ 7</div>
-      <div class="slot empty">ช่องที่ 8</div>
-
-    </div>
-
-  </div>
-
-</div>
-
-<div>
-
-  <!-- ADD DEVICE -->
-
-  <div class="card">
-
-    <h3>
-      เพิ่มอุปกรณ์
-    </h3>
-
-    <input
-      id="deviceName"
-      placeholder="ชื่ออุปกรณ์"
-    >
-
-    <input
-      id="onKey"
-      placeholder="คำสั่งเสียงเปิด"
-    >
-
-    <input
-      id="offKey"
-      placeholder="คำสั่งเสียงปิด"
-    >
-
-    <input
-      id="pinInput"
-      placeholder="GPIO"
-    >
-
-    <button
-      class="action"
-      onclick="addDevice()"
-    >
-      เพิ่มอุปกรณ์
-    </button>
-
-  </div>
-
-  <!-- SCHEDULE -->
-
-  <div class="card">
-
-    <h3>
-      ตั้งเวลาทำงาน (ตามตารางเวลา)
-    </h3>
-
-    <select
-      id="deviceSelect"
-      onchange="updateDeviceScheduleUI()"
-    >
-
-      <option value="">
-        เลือกอุปกรณ์เพื่อตั้งเวลา
-      </option>
-
-    </select>
-
-    <div
-      id="deviceScheduleModeText"
-      style="
-        margin-top:8px;
-        font-size:14px;
-        font-weight:600;
-        color:#555;
-      "
-    >
-      สถานะตารางเวลาอุปกรณ์: -
-    </div>
-
-    <div
-      style="
-        margin-top:8px;
-        display:flex;
-        gap:10px;
-      "
-    >
-
-      <button
-        id="scheduleAutoBtn"
-        class="action"
-        style="
-          margin-top:0;
-          background:#7f8c8d;
-        "
-        onclick="changeDeviceScheduleMode('auto')"
-      >
-        เปิดตารางเวลา
-      </button>
-
-      <button
-        id="scheduleManualBtn"
-        class="action"
-        style="
-          margin-top:0;
-          background:#7f8c8d;
-        "
-        onclick="changeDeviceScheduleMode('manual')"
-      >
-        ปิดตารางเวลา
-      </button>
-
-    </div>
-
-    <hr
-      style="
-        border:0;
-        border-top:1px solid #eee;
-        margin:15px 0;
-      "
-    >
-
-    <div class="schedule-form-group">
-
-      <label>
-        เวลาเปิด
-      </label>
-
-      <input
-        type="time"
-        id="timeOn"
-      >
-
-    </div>
-
-    <div class="schedule-form-group">
-
-      <label>
-        เวลาปิด
-      </label>
-
-      <input
-        type="time"
-        id="timeOff"
-      >
-
-    </div>
-
-    <button
-      class="action"
-      onclick="saveSchedule()"
-    >
-      บันทึกเวลาทำงาน
-    </button>
-
-    <div id="scheduleStatus"></div>
-
-    <div id="scheduleList"></div>
-
-  </div>
-
-  <!-- VOICE -->
-
-  <div class="card">
-
-    <h3>
-      ควบคุมด้วยเสียง
-    </h3>
-
-    <button
-      class="action voiceBtn"
-      id="voiceButton"
-      onclick="startVoice()"
-    >
-      🎤 เริ่มฟังคำสั่ง
-    </button>
-
-    <div id="voiceText"></div>
-
-  </div>
-
-</div>
-
-</div>
-</div>
-
 <script type="module">
 
 import {
@@ -707,31 +36,26 @@ let schedulerInterval = null;
 
 let recognition = null;
 
-// สถานะล่าสุดของ Schedule
-let lastScheduleAction = {};
-
-// Mode ของแต่ละอุปกรณ์
 let deviceModes =
   JSON.parse(
     localStorage.getItem("deviceModes") || "{}"
   );
 
-// Global Mode
 let globalMode =
   localStorage.getItem("globalMode") || "manual";
 
+// จำสถานะล่าสุดที่ Schedule ส่งสำเร็จ
+let lastScheduleAction = {};
+
 // ==================================================
-// AUTH
+// Authentication
 // ==================================================
 
 async function checkAuthAndLoad()
 {
   const {
-    data: {
-      user
-    }
-  } =
-    await supabase.auth.getUser();
+    data: { user }
+  } = await supabase.auth.getUser();
 
   if (!user)
   {
@@ -764,7 +88,7 @@ async function checkAuthAndLoad()
 }
 
 // ==================================================
-// LOAD DEVICES
+// Load Devices
 // ==================================================
 
 async function loadDevices()
@@ -772,15 +96,14 @@ async function loadDevices()
   const {
     data,
     error
-  } =
-    await supabase
-      .from("devices")
-      .select("*")
-      .eq(
-        "user_id",
-        currentUser.id
-      )
-      .order("created_at");
+  } = await supabase
+    .from("devices")
+    .select("*")
+    .eq(
+      "user_id",
+      currentUser.id
+    )
+    .order("created_at");
 
   if (error)
   {
@@ -804,21 +127,22 @@ async function loadDevices()
       {
         const {
           data
-        } =
-          await supabase
-            .from("device_status_logs")
-            .select("status")
-            .eq(
-              "device_id",
-              d.id
-            )
-            .order(
-              "changed_at",
-              {
-                ascending:false
-              }
-            )
-            .limit(1);
+        } = await supabase
+          .from(
+            "device_status_logs"
+          )
+          .select("status")
+          .eq(
+            "device_id",
+            d.id
+          )
+          .order(
+            "changed_at",
+            {
+              ascending: false
+            }
+          )
+          .limit(1);
 
         latestStatusMap[d.id] =
           data &&
@@ -837,7 +161,7 @@ async function loadDevices()
 }
 
 // ==================================================
-// LOAD SCHEDULES
+// Load Schedules
 // ==================================================
 
 async function loadSchedules()
@@ -845,9 +169,7 @@ async function loadSchedules()
   if (!devices.length)
   {
     schedules = [];
-
     renderScheduleList();
-
     return;
   }
 
@@ -859,16 +181,15 @@ async function loadSchedules()
   const {
     data,
     error
-  } =
-    await supabase
-      .from("schedules")
-      .select(
-        "*, devices(id, name, pin)"
-      )
-      .in(
-        "device_id",
-        deviceIds
-      );
+  } = await supabase
+    .from("schedules")
+    .select(
+      "*, devices(id, name, pin)"
+    )
+    .in(
+      "device_id",
+      deviceIds
+    );
 
   if (error)
   {
@@ -882,7 +203,7 @@ async function loadSchedules()
 }
 
 // ==================================================
-// RENDER DEVICES
+// Render Devices
 // ==================================================
 
 function renderDevices(
@@ -918,11 +239,7 @@ function renderDevices(
   if (selectEl)
   {
     selectEl.innerHTML =
-      `
-      <option value="">
-        เลือกอุปกรณ์เพื่อตั้งเวลา
-      </option>
-      `;
+      '<option value="">เลือกอุปกรณ์เพื่อตั้งเวลา</option>';
   }
 
   devices.forEach(
@@ -962,36 +279,8 @@ function renderDevices(
 
       const modeBadge =
         currentMode === "auto"
-
-          ? `
-            <span
-              style="
-                background:#3498db;
-                color:white;
-                padding:3px 10px;
-                border-radius:12px;
-                font-size:12px;
-                font-weight:600;
-              "
-            >
-              🤖 Auto
-            </span>
-          `
-
-          : `
-            <span
-              style="
-                background:#e67e22;
-                color:white;
-                padding:3px 10px;
-                border-radius:12px;
-                font-size:12px;
-                font-weight:600;
-              "
-            >
-              🕹 Manual
-            </span>
-          `;
+          ? `<span style="background:#3498db;color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">🤖 Auto</span>`
+          : `<span style="background:#e67e22;color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">🕹 Manual</span>`;
 
       let disabledStyle = "";
 
@@ -1000,11 +289,10 @@ function renderDevices(
       )
       {
         disabledStyle =
-          "opacity:.5;cursor:not-allowed;filter:grayscale(50%);";
+          "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
       }
 
       slot.innerHTML = `
-
         <button
           class="deleteBtn"
           onclick="deleteDevice('${d.id}')"
@@ -1024,12 +312,7 @@ function renderDevices(
           class="${btnClass}"
           style="${disabledStyle}"
           id="btn-${d.id}"
-          onclick="
-            toggleDevice(
-              '${d.id}',
-              '${d.pin}'
-            )
-          "
+          onclick="toggleDevice('${d.id}','${d.pin}')"
         >
           ${btnText}
         </button>
@@ -1045,17 +328,14 @@ function renderDevices(
         <div>
           🎤 ปิด : ${d.off_key}
         </div>
-
       `;
 
       if (selectEl)
       {
         selectEl.innerHTML +=
-          `
-          <option value="${d.id}">
+          `<option value="${d.id}">
             ${d.name}
-          </option>
-          `;
+          </option>`;
       }
     }
   );
@@ -1071,7 +351,7 @@ function renderDevices(
 }
 
 // ==================================================
-// RENDER SCHEDULE
+// Schedule List
 // ==================================================
 
 function renderScheduleList()
@@ -1091,18 +371,9 @@ function renderScheduleList()
   }
 
   list.innerHTML =
-    `
-    <div
-      style="
-        margin-top:12px;
-        font-size:13px;
-        color:#555;
-        font-weight:600;
-      "
-    >
+    `<div style="margin-top:12px;font-size:13px;color:#555;font-weight:600">
       รายการเวลาที่ตั้งไว้
-    </div>
-    `;
+    </div>`;
 
   schedules.forEach(
     s =>
@@ -1111,78 +382,65 @@ function renderScheduleList()
         s.devices?.name ||
         "ไม่ทราบชื่อ";
 
-      list.innerHTML +=
-        `
+      list.innerHTML += `
         <div class="schedule-item">
 
           <span>
             🔧 ${name}
-            —
-            เปิด ${s.time_on}
-            /
-            ปิด ${s.time_off}
+            — เปิด ${s.time_on}
+            / ปิด ${s.time_off}
           </span>
 
           <button
             class="del"
-            onclick="
-              deleteSchedule(
-                '${s.device_id}'
-              )
-            "
+            onclick="deleteSchedule('${s.device_id}')"
           >
             🗑
           </button>
 
         </div>
-        `;
+      `;
     }
   );
 }
 
 // ==================================================
-// CURRENT TIME
+// Time Functions
 // ==================================================
 
 function getCurrentTime()
 {
-  const now =
-    new Date();
+  const now = new Date();
 
   return (
     now.getHours()
       .toString()
-      .padStart(2,"0")
+      .padStart(2, "0")
     +
     ":"
     +
     now.getMinutes()
       .toString()
-      .padStart(2,"0")
+      .padStart(2, "0")
   );
 }
 
-// ==================================================
-// TIME -> MINUTES
-// ==================================================
-
-function timeToMinutes(
-  time
-)
+function timeToMinutes(time)
 {
   if (!time)
     return -1;
 
   const clean =
-    time.substring(0,5);
+    time.substring(0, 5);
 
-  const [
-    h,
-    m
-  ] =
-    clean
-      .split(":")
-      .map(Number);
+  const parts =
+    clean.split(":");
+
+  const h =
+    Number(parts[0]);
+
+  const m =
+    Number(parts[1]);
 
   if (
     Number.isNaN(h) ||
@@ -1192,13 +450,11 @@ function timeToMinutes(
     return -1;
   }
 
-  return (
-    h * 60 + m
-  );
+  return h * 60 + m;
 }
 
 // ==================================================
-// CHECK SCHEDULE TIME
+// Is Time In Schedule
 // ==================================================
 
 function isTimeInSchedule(
@@ -1208,19 +464,13 @@ function isTimeInSchedule(
 )
 {
   const now =
-    timeToMinutes(
-      current
-    );
+    timeToMinutes(current);
 
   const on =
-    timeToMinutes(
-      timeOn
-    );
+    timeToMinutes(timeOn);
 
   const off =
-    timeToMinutes(
-      timeOff
-    );
+    timeToMinutes(timeOff);
 
   if (
     now < 0 ||
@@ -1236,7 +486,7 @@ function isTimeInSchedule(
     return false;
   }
 
-  // เช่น 10:00 - 15:00
+  // เช่น 08:00 -> 18:00
   if (on < off)
   {
     return (
@@ -1245,7 +495,7 @@ function isTimeInSchedule(
     );
   }
 
-  // เช่น 23:00 - 02:00
+  // เช่น 22:00 -> 06:00
   return (
     now >= on ||
     now < off
@@ -1253,7 +503,7 @@ function isTimeInSchedule(
 }
 
 // ==================================================
-// SET DEVICE STATE
+// Send Device State
 // ==================================================
 
 async function setDeviceState(
@@ -1263,6 +513,47 @@ async function setDeviceState(
   fromSchedule = false
 )
 {
+  if (
+    !ws ||
+    ws.readyState !== WebSocket.OPEN
+  )
+  {
+    console.warn(
+      "[WS] ยังไม่เชื่อมต่อ ไม่ส่งคำสั่ง"
+    );
+
+    showSchedulerStatus(
+      "⚠️ WebSocket ยังไม่เชื่อมต่อ"
+    );
+
+    return false;
+  }
+
+  const command =
+  {
+    type: "control",
+    device: String(pin),
+    status: targetState,
+    isSchedule: fromSchedule
+  };
+
+  try
+  {
+    ws.send(
+      JSON.stringify(command)
+    );
+  }
+  catch (err)
+  {
+    console.error(
+      "[WS] Send error",
+      err
+    );
+
+    return false;
+  }
+
+  // เปลี่ยน UI
   const btn =
     document.getElementById(
       "btn-" + id
@@ -1290,54 +581,41 @@ async function setDeviceState(
     }
   }
 
-  // ==============================================
-  // ต้องมี WebSocket
-  // ==============================================
+  // เก็บประวัติ
+  const {
+    error
+  } = await supabase
+    .from(
+      "device_status_logs"
+    )
+    .insert([
+      {
+        device_id: id,
+        status:
+          targetState === "on"
+      }
+    ]);
 
-  if (
-    !ws ||
-    ws.readyState !== WebSocket.OPEN
-  )
+  if (error)
   {
-    console.warn(
-      "[WS] ยังไม่ได้เชื่อมต่อ"
+    console.error(
+      "[Supabase] Log error",
+      error
     );
-
-    return false;
   }
-
-  const command =
-  {
-    type:"control",
-
-    device:String(pin),
-
-    status:targetState,
-
-    isSchedule:fromSchedule
-  };
-
-  console.log(
-    "[WS SEND]",
-    command
-  );
-
-  ws.send(
-    JSON.stringify(command)
-  );
 
   return true;
 }
 
 // ==================================================
-// MANUAL TOGGLE
+// Manual Toggle
 // ==================================================
 
 window.toggleDevice =
-async (
-  id,
-  pin
-) =>
+  async (
+    id,
+    pin
+  ) =>
 {
   if (
     globalMode === "auto"
@@ -1350,39 +628,6 @@ async (
     return;
   }
 
-  // ถ้า Schedule กำลังควบคุม
-  if (
-    lastScheduleAction[id] !== undefined
-  )
-  {
-    const schedule =
-      schedules.find(
-        s =>
-          String(
-            s.device_id
-          ) === String(id)
-      );
-
-    if (schedule)
-    {
-      const active =
-        isTimeInSchedule(
-          getCurrentTime(),
-          schedule.time_on,
-          schedule.time_off
-        );
-
-      if (active)
-      {
-        alert(
-          "อุปกรณ์กำลังถูกควบคุมโดยตารางเวลา"
-        );
-
-        return;
-      }
-    }
-  }
-
   const btn =
     document.getElementById(
       "btn-" + id
@@ -1392,7 +637,9 @@ async (
     return;
 
   const targetState =
-    btn.classList.contains("on")
+    btn.classList.contains(
+      "on"
+    )
       ? "off"
       : "on";
 
@@ -1410,25 +657,13 @@ async (
 
 async function checkSchedules()
 {
-  if (
-    !devices.length ||
-    !schedules.length
-  )
-  {
+  if (!devices.length)
     return;
-  }
 
   const currentTime =
     getCurrentTime();
 
-  console.log(
-    "[SCHEDULE CHECK]",
-    currentTime
-  );
-
-  for (
-    const s of schedules
-  )
+  for (const s of schedules)
   {
     const device =
       s.devices;
@@ -1436,26 +671,21 @@ async function checkSchedules()
     if (!device)
       continue;
 
-    const currentMode =
+    const mode =
       deviceModes[device.id] ||
       "manual";
 
-    // ต้องเปิด Schedule
-    if (
-      currentMode !== "auto"
-    )
-    {
+    if (mode !== "auto")
       continue;
-    }
 
     const timeOn =
       s.time_on
-        ? s.time_on.substring(0,5)
+        ? s.time_on.substring(0, 5)
         : "";
 
     const timeOff =
       s.time_off
-        ? s.time_off.substring(0,5)
+        ? s.time_off.substring(0, 5)
         : "";
 
     if (
@@ -1483,94 +713,78 @@ async function checkSchedules()
         device.id
       ];
 
-    // ============================================
-    // ยังไม่มีสถานะ
-    // ============================================
+    // --------------------------------------------
+    // ยังไม่ต้องส่งซ้ำ
+    // --------------------------------------------
 
     if (
-      lastState === undefined
+      lastState === targetState
     )
     {
-      console.log(
-        `[SCHEDULE] ${device.name} INITIAL -> ${targetState.toUpperCase()}`
+      continue;
+    }
+
+    console.log(
+      `[SCHEDULE] ${device.name} -> ${targetState.toUpperCase()}`
+    );
+
+    // --------------------------------------------
+    // ถ้า WebSocket ยังไม่พร้อม
+    // ห้ามจำว่าได้ส่งแล้ว
+    // --------------------------------------------
+
+    const success =
+      await setDeviceState(
+        device.id,
+        device.pin,
+        targetState,
+        true
       );
 
-      const success =
-        await setDeviceState(
-          device.id,
-          device.pin,
-          targetState,
-          true
-        );
-
-      // บันทึกสถานะเฉพาะเมื่อส่งสำเร็จ
-      if (success)
-      {
-        lastScheduleAction[
-          device.id
-        ] =
-          targetState;
-
-        showSchedulerStatus(
-          `⏰ ${active ? "เปิด" : "ปิด"} ${device.name} อัตโนมัติ`
-        );
-      }
+    if (!success)
+    {
+      console.log(
+        "[SCHEDULE] ส่งไม่สำเร็จ จะลองใหม่"
+      );
 
       continue;
     }
 
-    // ============================================
-    // สถานะเปลี่ยน
-    // ============================================
+    // --------------------------------------------
+    // บันทึกหลังส่งสำเร็จเท่านั้น
+    // --------------------------------------------
 
-    if (
-      lastState !== targetState
-    )
-    {
-      console.log(
-        `[SCHEDULE] ${device.name} ${lastState.toUpperCase()} -> ${targetState.toUpperCase()}`
-      );
+    lastScheduleAction[
+      device.id
+    ] = targetState;
 
-      const success =
-        await setDeviceState(
-          device.id,
-          device.pin,
-          targetState,
-          true
-        );
-
-      if (success)
-      {
-        lastScheduleAction[
-          device.id
-        ] =
-          targetState;
-
-        showSchedulerStatus(
-          `⏰ ${active ? "เปิด" : "ปิด"} ${device.name} อัตโนมัติ`
-        );
-      }
-    }
+    showSchedulerStatus(
+      `⏰ ${
+        active
+          ? "เปิด"
+          : "ปิด"
+      } ${device.name} อัตโนมัติ`
+    );
   }
 }
 
 // ==================================================
-// START SCHEDULER
+// Scheduler
 // ==================================================
 
 function startScheduler()
 {
-  if (
-    schedulerInterval
-  )
+  if (schedulerInterval)
   {
     clearInterval(
       schedulerInterval
     );
   }
 
+  // ตรวจทันที
   checkSchedules();
 
+  // ตรวจทุก 1 วินาที
   schedulerInterval =
     setInterval(
       () =>
@@ -1582,12 +796,10 @@ function startScheduler()
 }
 
 // ==================================================
-// STATUS POPUP
+// Scheduler Status
 // ==================================================
 
-function showSchedulerStatus(
-  msg
-)
+function showSchedulerStatus(msg)
 {
   const el =
     document.getElementById(
@@ -1614,11 +826,11 @@ function showSchedulerStatus(
 }
 
 // ==================================================
-// SAVE SCHEDULE
+// Save Schedule
 // ==================================================
 
 window.saveSchedule =
-async () =>
+  async () =>
 {
   const deviceId =
     document.getElementById(
@@ -1664,20 +876,19 @@ async () =>
     return;
   }
 
-  // ============================================
-  // ลบ Schedule เดิม
-  // ============================================
+  // --------------------------------------------
+  // ลบตารางเดิม
+  // --------------------------------------------
 
   const {
     error: deleteError
-  } =
-    await supabase
-      .from("schedules")
-      .delete()
-      .eq(
-        "device_id",
-        deviceId
-      );
+  } = await supabase
+    .from("schedules")
+    .delete()
+    .eq(
+      "device_id",
+      deviceId
+    );
 
   if (deleteError)
   {
@@ -1688,22 +899,26 @@ async () =>
     return;
   }
 
-  // ============================================
-  // เพิ่ม Schedule ใหม่
-  // ============================================
+  // --------------------------------------------
+  // เพิ่มตารางใหม่
+  // --------------------------------------------
 
   const {
     error
-  } =
-    await supabase
-      .from("schedules")
-      .insert([
-        {
-          device_id:deviceId,
-          time_on:onTime,
-          time_off:offTime
-        }
-      ]);
+  } = await supabase
+    .from("schedules")
+    .insert([
+      {
+        device_id:
+          deviceId,
+
+        time_on:
+          onTime,
+
+        time_off:
+          offTime
+      }
+    ]);
 
   if (error)
   {
@@ -1714,12 +929,13 @@ async () =>
     return;
   }
 
-  // ============================================
-  // เปิด Schedule ให้อุปกรณ์
-  // ============================================
+  // --------------------------------------------
+  // เปิด Schedule
+  // --------------------------------------------
 
-  deviceModes[deviceId] =
-    "auto";
+  deviceModes[
+    deviceId
+  ] = "auto";
 
   localStorage.setItem(
     "deviceModes",
@@ -1728,24 +944,23 @@ async () =>
     )
   );
 
-  // สำคัญ
-  // บังคับให้ตรวจ Schedule ใหม่
+  // บังคับให้ตรวจใหม่
   delete lastScheduleAction[
     deviceId
   ];
 
   await loadSchedules();
 
-  renderDevices();
-
   updateDeviceScheduleUI();
+
+  renderDevices();
 
   await checkSchedules();
 
   if (statusEl)
   {
     statusEl.innerHTML =
-      "✅ บันทึกเวลาและเปิดใช้งานตารางเวลาแล้ว";
+      "✅ บันทึกเวลาเรียบร้อย";
 
     setTimeout(
       () =>
@@ -1759,13 +974,11 @@ async () =>
 };
 
 // ==================================================
-// DELETE SCHEDULE
+// Delete Schedule
 // ==================================================
 
 window.deleteSchedule =
-async (
-  deviceId
-) =>
+  async deviceId =>
 {
   if (
     !confirm(
@@ -1776,29 +989,57 @@ async (
     return;
   }
 
-  const {
-    error
-  } =
-    await supabase
-      .from("schedules")
-      .delete()
-      .eq(
-        "device_id",
-        deviceId
-      );
-
-  if (error)
-  {
-    alert(
-      error.message
+  const device =
+    devices.find(
+      d => d.id === deviceId
     );
 
-    return;
+  // ถ้าอุปกรณ์กำลังเปิดจาก Schedule
+  // ให้สั่ง OFF ก่อน
+  if (
+    device &&
+    deviceModes[deviceId] === "auto"
+  )
+  {
+    const schedule =
+      schedules.find(
+        s =>
+          s.device_id ===
+          deviceId
+      );
+
+    if (schedule)
+    {
+      const active =
+        isTimeInSchedule(
+          getCurrentTime(),
+          schedule.time_on,
+          schedule.time_off
+        );
+
+      if (active)
+      {
+        await setDeviceState(
+          device.id,
+          device.pin,
+          "off",
+          true
+        );
+      }
+    }
   }
 
-  // ปิด Schedule ของอุปกรณ์นี้
-  deviceModes[deviceId] =
-    "manual";
+  await supabase
+    .from("schedules")
+    .delete()
+    .eq(
+      "device_id",
+      deviceId
+    );
+
+  deviceModes[
+    deviceId
+  ] = "manual";
 
   localStorage.setItem(
     "deviceModes",
@@ -1813,9 +1054,9 @@ async (
 
   await loadSchedules();
 
-  renderDevices();
-
   updateDeviceScheduleUI();
+
+  renderDevices();
 
   showSchedulerStatus(
     "🗑 ลบตารางเวลาแล้ว"
@@ -1823,7 +1064,7 @@ async (
 };
 
 // ==================================================
-// GLOBAL MODE UI
+// Global Mode UI
 // ==================================================
 
 function updateGlobalModeUI()
@@ -1890,7 +1131,7 @@ function updateGlobalModeUI()
       )
       {
         btn.style.cssText =
-          "opacity:.5;cursor:not-allowed;filter:grayscale(50%);";
+          "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
       }
       else
       {
@@ -1902,11 +1143,11 @@ function updateGlobalModeUI()
 }
 
 // ==================================================
-// CHANGE GLOBAL MODE
+// Change Global Mode
 // ==================================================
 
 window.changeGlobalMode =
-mode =>
+  mode =>
 {
   globalMode =
     mode;
@@ -1920,25 +1161,17 @@ mode =>
 
   if (
     ws &&
-    ws.readyState === WebSocket.OPEN
+    ws.readyState ===
+      WebSocket.OPEN
   )
   {
     ws.send(
       JSON.stringify({
-        type:"control",
-        mode:mode
+        type: "control",
+        mode: mode
       })
     );
   }
-
-  // Schedule ต้องตรวจใหม่
-  setTimeout(
-    () =>
-    {
-      checkSchedules();
-    },
-    100
-  );
 
   showSchedulerStatus(
     `เปลี่ยนโหมดเป็น ${
@@ -1950,7 +1183,7 @@ mode =>
 };
 
 // ==================================================
-// DEVICE SCHEDULE UI
+// Device Schedule UI
 // ==================================================
 
 function updateDeviceScheduleUI()
@@ -2020,11 +1253,11 @@ function updateDeviceScheduleUI()
 }
 
 // ==================================================
-// CHANGE DEVICE SCHEDULE MODE
+// Change Device Schedule Mode
 // ==================================================
 
 window.changeDeviceScheduleMode =
-async mode =>
+  async mode =>
 {
   const deviceId =
     document.getElementById(
@@ -2040,8 +1273,54 @@ async mode =>
     return;
   }
 
-  deviceModes[deviceId] =
-    mode;
+  const device =
+    devices.find(
+      d => d.id === deviceId
+    );
+
+  // --------------------------------------------
+  // ถ้าปิด Schedule
+  // และอุปกรณ์กำลังอยู่ในช่วงเวลา
+  // ให้ OFF ก่อน
+  // --------------------------------------------
+
+  if (
+    mode === "manual" &&
+    device &&
+    deviceModes[deviceId] === "auto"
+  )
+  {
+    const schedule =
+      schedules.find(
+        s =>
+          s.device_id ===
+          deviceId
+      );
+
+    if (schedule)
+    {
+      const active =
+        isTimeInSchedule(
+          getCurrentTime(),
+          schedule.time_on,
+          schedule.time_off
+        );
+
+      if (active)
+      {
+        await setDeviceState(
+          device.id,
+          device.pin,
+          "off",
+          true
+        );
+      }
+    }
+  }
+
+  deviceModes[
+    deviceId
+  ] = mode;
 
   localStorage.setItem(
     "deviceModes",
@@ -2050,7 +1329,6 @@ async mode =>
     )
   );
 
-  // สำคัญ
   delete lastScheduleAction[
     deviceId
   ];
@@ -2078,11 +1356,24 @@ async mode =>
 };
 
 // ==================================================
-// WEBSOCKET CONNECT
+// WebSocket
 // ==================================================
 
 function connectWS()
 {
+  if (
+    ws &&
+    (
+      ws.readyState ===
+        WebSocket.OPEN ||
+      ws.readyState ===
+        WebSocket.CONNECTING
+    )
+  )
+  {
+    return;
+  }
+
   console.log(
     "[WS] Connecting..."
   );
@@ -2092,293 +1383,259 @@ function connectWS()
       "wss://smartfarm-web.onrender.com"
     );
 
-  // ============================================
-  // OPEN
-  // ============================================
-
   ws.onopen =
-  () =>
-  {
-    console.log(
-      "[WS] Connected"
-    );
+    () =>
+    {
+      console.log(
+        "[WS] Connected"
+      );
 
-    ws.send(
-      JSON.stringify({
-        type:"web"
-      })
-    );
+      ws.send(
+        JSON.stringify({
+          type: "web"
+        })
+      );
 
-    // ==========================================
-    // สำคัญมาก
-    // ถ้า ESP32 reconnect/restart
-    // ให้เว็บส่ง Schedule ปัจจุบันใหม่
-    // ==========================================
-
-    lastScheduleAction = {};
-
-    setTimeout(
-      async () =>
-      {
-        if (
-          ws &&
-          ws.readyState === WebSocket.OPEN
-        )
+      setTimeout(
+        () =>
         {
-          ws.send(
-            JSON.stringify({
-              type:"control",
-              mode:globalMode
-            })
-          );
+          if (
+            ws &&
+            ws.readyState ===
+              WebSocket.OPEN
+          )
+          {
+            ws.send(
+              JSON.stringify({
+                type: "control",
+                mode: globalMode
+              })
+            );
 
-          await checkSchedules();
-        }
-      },
-      500
-    );
-  };
+            // ตรวจ Schedule ทันที
+            delete lastScheduleAction;
 
-  // ============================================
-  // MESSAGE
-  // ============================================
+            checkSchedules();
+          }
+        },
+        500
+      );
+    };
 
   ws.onmessage =
-  event =>
-  {
-    try
+    event =>
     {
-      const data =
-        JSON.parse(
-          event.data
-        );
-
-      // ========================================
-      // STATUS
-      // ========================================
-
-      if (
-        data.type === "status" ||
-        data.type === "sensor"
-      )
+      try
       {
+        const data =
+          JSON.parse(
+            event.data
+          );
+
+        // ----------------------------------------
+        // Sensor / Status
+        // ----------------------------------------
+
         if (
-          data.temperature !== undefined
+          data.type ===
+            "status" ||
+          data.type ===
+            "sensor"
         )
         {
-          const temp =
-            parseFloat(
-              data.temperature
-            );
+          if (
+            data.temperature !==
+            undefined
+          )
+          {
+            const temp =
+              parseFloat(
+                data.temperature
+              );
 
-          const el =
             document.getElementById(
               "displayTemp"
-            );
-
-          if (el)
-          {
-            el.innerHTML =
+            ).innerHTML =
               temp > 0
-                ? temp.toFixed(1) + " °C"
+                ? temp.toFixed(1) +
+                  " °C"
                 : "-- °C";
           }
-        }
 
-        if (
-          data.food_level !== undefined
-        )
-        {
-          const el =
+          if (
+            data.food_level !==
+            undefined
+          )
+          {
             document.getElementById(
               "displayFood"
-            );
-
-          if (el)
-          {
-            el.innerHTML =
+            ).innerHTML =
               data.food_level +
               " %";
           }
-        }
 
-        if (
-          data.water_level !== undefined
-        )
-        {
-          const el =
+          if (
+            data.water_level !==
+            undefined
+          )
+          {
             document.getElementById(
               "displayWater"
-            );
-
-          if (el)
-          {
-            el.innerHTML =
+            ).innerHTML =
               data.water_level +
               " %";
           }
+
+          devices.forEach(
+            d =>
+            {
+              const btn =
+                document.getElementById(
+                  "btn-" + d.id
+                );
+
+              if (!btn)
+                return;
+
+              const pin =
+                Number(d.pin);
+
+              let isDeviceOn =
+                false;
+
+              if (pin === 17)
+                isDeviceOn =
+                  data.light === true;
+
+              else if (pin === 16)
+                isDeviceOn =
+                  data.fan1 === true;
+
+              else if (pin === 5)
+                isDeviceOn =
+                  data.fan2 === true;
+
+              else if (pin === 21)
+                isDeviceOn =
+                  data.pump1 === true;
+
+              else if (pin === 19)
+                isDeviceOn =
+                  data.pump2 === true;
+
+              else if (pin === 18)
+                isDeviceOn =
+                  data.motor === true;
+
+              else
+                return;
+
+              if (isDeviceOn)
+              {
+                btn.className =
+                  "device on";
+
+                btn.innerHTML =
+                  "ON";
+              }
+              else
+              {
+                btn.className =
+                  "device off";
+
+                btn.innerHTML =
+                  "OFF";
+              }
+
+              if (
+                globalMode ===
+                "auto"
+              )
+              {
+                btn.style.cssText =
+                  "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
+              }
+              else
+              {
+                btn.style.cssText =
+                  "";
+              }
+            }
+          );
         }
 
-        // ======================================
-        // UPDATE RELAY UI
-        // ======================================
+        // ----------------------------------------
+        // Mode
+        // ----------------------------------------
 
-        devices.forEach(
-          d =>
-          {
-            const btn =
-              document.getElementById(
-                "btn-" + d.id
-              );
-
-            if (!btn)
-              return;
-
-            let isDeviceOn =
-              false;
-
-            const pin =
-              Number(d.pin);
-
-            if (pin === 17)
-              isDeviceOn =
-                data.light === true;
-
-            else if (pin === 16)
-              isDeviceOn =
-                data.fan1 === true;
-
-            else if (pin === 5)
-              isDeviceOn =
-                data.fan2 === true;
-
-            else if (pin === 21)
-              isDeviceOn =
-                data.pump1 === true;
-
-            else if (pin === 19)
-              isDeviceOn =
-                data.pump2 === true;
-
-            else if (pin === 18)
-              isDeviceOn =
-                data.motor === true;
-
-            else
-              return;
-
-            if (isDeviceOn)
-            {
-              btn.className =
-                "device on";
-
-              btn.innerHTML =
-                "ON";
-            }
-            else
-            {
-              btn.className =
-                "device off";
-
-              btn.innerHTML =
-                "OFF";
-            }
-
-            if (
-              globalMode === "auto"
-            )
-            {
-              btn.style.cssText =
-                "opacity:.5;cursor:not-allowed;filter:grayscale(50%);";
-            }
-            else
-            {
-              btn.style.cssText =
-                "";
-            }
-          }
-        );
-      }
-
-      // ========================================
-      // MODE STATUS
-      // ========================================
-
-      if (
-        data.type === "mode_status"
-      )
-      {
         if (
-          data.mode === "auto" ||
-          data.mode === "manual"
+          data.type ===
+          "mode_status"
         )
         {
-          globalMode =
-            data.mode;
+          if (
+            data.mode ===
+              "auto" ||
+            data.mode ===
+              "manual"
+          )
+          {
+            globalMode =
+              data.mode;
 
-          localStorage.setItem(
-            "globalMode",
-            globalMode
-          );
+            localStorage.setItem(
+              "globalMode",
+              globalMode
+            );
 
-          updateGlobalModeUI();
+            updateGlobalModeUI();
+          }
         }
+
       }
-
-    }
-    catch(e)
-    {
-      console.error(
-        "[WS] JSON Error",
-        e
-      );
-    }
-  };
-
-  // ============================================
-  // CLOSE
-  // ============================================
-
-  ws.onclose =
-  () =>
-  {
-    console.warn(
-      "[WS] Connection closed"
-    );
-
-    // สำคัญ
-    // เมื่อต่อใหม่ให้ส่ง Schedule ใหม่
-    lastScheduleAction = {};
-
-    setTimeout(
-      () =>
+      catch (e)
       {
-        connectWS();
-      },
-      5000
-    );
-  };
-
-  // ============================================
-  // ERROR
-  // ============================================
+        console.error(
+          "[WS] JSON Error",
+          e
+        );
+      }
+    };
 
   ws.onerror =
-  error =>
-  {
-    console.error(
-      "[WS] Error",
-      error
-    );
-  };
+    error =>
+    {
+      console.error(
+        "[WS] Error",
+        error
+      );
+    };
+
+  ws.onclose =
+    () =>
+    {
+      console.log(
+        "[WS] Closed - reconnect 5 sec"
+      );
+
+      ws = null;
+
+      setTimeout(
+        () =>
+        {
+          connectWS();
+        },
+        5000
+      );
+    };
 }
 
 // ==================================================
-// ADD DEVICE
+// Add Device
 // ==================================================
 
 window.addDevice =
-async () =>
+  async () =>
 {
   const name =
     document.getElementById(
@@ -2416,18 +1673,24 @@ async () =>
 
   const {
     error
-  } =
-    await supabase
-      .from("devices")
-      .insert([
-        {
-          user_id:currentUser.id,
-          name:name,
-          on_key:on,
-          off_key:off,
-          pin:pin
-        }
-      ]);
+  } = await supabase
+    .from("devices")
+    .insert([
+      {
+        user_id:
+          currentUser.id,
+
+        name,
+
+        on_key:
+          on,
+
+        off_key:
+          off,
+
+        pin
+      }
+    ]);
 
   if (error)
   {
@@ -2460,11 +1723,11 @@ async () =>
 };
 
 // ==================================================
-// DELETE DEVICE
+// Delete Device
 // ==================================================
 
 window.deleteDevice =
-async id =>
+  async id =>
 {
   if (
     !confirm(
@@ -2493,8 +1756,6 @@ async id =>
 
   delete deviceModes[id];
 
-  delete lastScheduleAction[id];
-
   localStorage.setItem(
     "deviceModes",
     JSON.stringify(
@@ -2502,17 +1763,21 @@ async id =>
     )
   );
 
+  delete lastScheduleAction[
+    id
+  ];
+
   await loadDevices();
 
   await loadSchedules();
 };
 
 // ==================================================
-// VOICE
+// Voice
 // ==================================================
 
 window.startVoice =
-async () =>
+  async () =>
 {
   const voiceBtn =
     document.getElementById(
@@ -2540,10 +1805,10 @@ async () =>
   {
     await navigator.mediaDevices
       .getUserMedia({
-        audio:true
+        audio: true
       });
   }
-  catch(err)
+  catch (err)
   {
     voiceText.innerHTML =
       "❌ กรุณาอนุญาตสิทธิ์ไมโครโฟน";
@@ -2557,7 +1822,7 @@ async () =>
     {
       recognition.abort();
     }
-    catch(e){}
+    catch (e) {}
   }
 
   recognition =
@@ -2576,127 +1841,126 @@ async () =>
     false;
 
   recognition.onstart =
-  () =>
-  {
-    voiceBtn.classList.add(
-      "listening"
-    );
+    () =>
+    {
+      voiceBtn.classList.add(
+        "listening"
+      );
 
-    voiceBtn.innerHTML =
-      "🔊 กำลังฟังคำสั่งเสียง...";
+      voiceBtn.innerHTML =
+        "🔊 กำลังฟังคำสั่งเสียง...";
 
-    voiceText.innerHTML =
-      "พูดคำสั่งเปิด/ปิดอุปกรณ์";
-  };
+      voiceText.innerHTML =
+        "พูดคำสั่งเปิด/ปิดอุปกรณ์";
+    };
 
   recognition.onresult =
-  async event =>
-  {
-    const text =
-      event.results[0][0]
-        .transcript
-        .trim()
-        .toLowerCase();
-
-    voiceText.innerHTML =
-      `ได้ยินเสียง: "${text}"`;
-
-    if (
-      globalMode === "auto"
-    )
+    async event =>
     {
-      voiceText.innerHTML =
-        "⚠️ ไม่สามารถสั่งงานด้วยเสียงในโหมด Auto";
-
-      return;
-    }
-
-    let matched =
-      false;
-
-    for (
-      const d of devices
-    )
-    {
-      const onKey =
-        d.on_key
+      const text =
+        event.results[0][0]
+          .transcript
           .trim()
           .toLowerCase();
 
-      const offKey =
-        d.off_key
-          .trim()
-          .toLowerCase();
-
-      if (
-        text === onKey
-      )
-      {
-        await setDeviceState(
-          d.id,
-          d.pin,
-          "on",
-          false
-        );
-
-        matched =
-          true;
-
-        break;
-      }
-
-      if (
-        text === offKey
-      )
-      {
-        await setDeviceState(
-          d.id,
-          d.pin,
-          "off",
-          false
-        );
-
-        matched =
-          true;
-
-        break;
-      }
-    }
-
-    if (!matched)
-    {
       voiceText.innerHTML =
-        `ได้ยิน: "${text}" ไม่พบคำสั่ง`;
-    }
-  };
+        `ได้ยินเสียง: "${text}"`;
+
+      if (
+        globalMode ===
+        "auto"
+      )
+      {
+        voiceText.innerHTML =
+          "⚠️ ไม่สามารถสั่งงานด้วยเสียงในโหมด Auto";
+
+        return;
+      }
+
+      let matched =
+        false;
+
+      for (
+        const d of devices
+      )
+      {
+        const onKey =
+          d.on_key
+            .trim()
+            .toLowerCase();
+
+        const offKey =
+          d.off_key
+            .trim()
+            .toLowerCase();
+
+        if (
+          text === onKey
+        )
+        {
+          await setDeviceState(
+            d.id,
+            d.pin,
+            "on",
+            false
+          );
+
+          matched = true;
+
+          break;
+        }
+
+        if (
+          text === offKey
+        )
+        {
+          await setDeviceState(
+            d.id,
+            d.pin,
+            "off",
+            false
+          );
+
+          matched = true;
+
+          break;
+        }
+      }
+
+      if (!matched)
+      {
+        voiceText.innerHTML =
+          `ได้ยิน: "${text}" ไม่พบคำสั่ง`;
+      }
+    };
 
   recognition.onerror =
-  () =>
-  {
-    voiceText.innerHTML =
-      "❌ เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
-  };
+    () =>
+    {
+      voiceText.innerHTML =
+        "❌ เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
+    };
 
   recognition.onend =
-  () =>
-  {
-    voiceBtn.classList.remove(
-      "listening"
-    );
+    () =>
+    {
+      voiceBtn.classList.remove(
+        "listening"
+      );
 
-    voiceBtn.innerHTML =
-      "🎤 เริ่มฟังคำสั่ง";
-  };
+      voiceBtn.innerHTML =
+        "🎤 เริ่มฟังคำสั่ง";
+    };
 
   try
   {
     recognition.start();
   }
-  catch(e){}
+  catch (e) {}
 };
 
 // ==================================================
-// LOGOUT
+// Logout
 // ==================================================
 
 async function logout()
@@ -2717,7 +1981,7 @@ async function logout()
 }
 
 // ==================================================
-// PAGE 2
+// History
 // ==================================================
 
 function goPage2()
@@ -2742,6 +2006,3 @@ window.updateDeviceScheduleUI =
 checkAuthAndLoad();
 
 </script>
-
-</body>
-</html>
