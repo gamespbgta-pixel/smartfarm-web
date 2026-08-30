@@ -1,3 +1,674 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Smart Farm Control</title>
+
+<link
+  href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap"
+  rel="stylesheet"
+>
+
+<style>
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+body{
+  margin:0;
+  font-family:'Kanit',sans-serif;
+  background:linear-gradient(135deg,#e8f5e9,#f1f8ff);
+}
+
+.header{
+  background:linear-gradient(135deg,#2ecc71,#27ae60);
+  color:white;
+  padding:15px 25px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.header-right{
+  display:flex;
+  gap:10px;
+}
+
+.page2btn,
+.logoutbtn{
+  border:none;
+  padding:10px 15px;
+  border-radius:10px;
+  cursor:pointer;
+  font-family:'Kanit',sans-serif;
+}
+
+.page2btn{
+  background:white;
+  color:#27ae60;
+}
+
+.logoutbtn{
+  background:#e74c3c;
+  color:white;
+}
+
+.container{
+  max-width:1300px;
+  margin:auto;
+  padding:25px;
+}
+
+.main{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:25px;
+}
+
+.card{
+  background:white;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+  margin-bottom:20px;
+}
+
+.card-header-flex{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:15px;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.card-header-flex h2{
+  margin:0;
+}
+
+.mode-control-group{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.device-area{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:15px;
+}
+
+.slot{
+  border:2px dashed #ccc;
+  border-radius:20px;
+  min-height:280px;
+  text-align:center;
+  padding:15px;
+  position:relative;
+}
+
+.slot.empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#999;
+  min-height:250px;
+}
+
+.device{
+  width:90px;
+  height:90px;
+  border-radius:50%;
+  border:none;
+  font-size:18px;
+  font-weight:bold;
+  cursor:pointer;
+  margin:10px auto;
+  display:block;
+  transition:transform .1s ease;
+}
+
+.device:active{
+  transform:scale(.95);
+}
+
+.device.on{
+  background:#2ecc71;
+  color:white;
+}
+
+.device.off{
+  background:#e74c3c;
+  color:white;
+}
+
+.deleteBtn{
+  position:absolute;
+  top:10px;
+  right:10px;
+  border:none;
+  background:red;
+  color:white;
+  border-radius:50%;
+  width:30px;
+  height:30px;
+  cursor:pointer;
+}
+
+input,
+select{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:1px solid #ddd;
+  border-radius:10px;
+  font-family:'Kanit',sans-serif;
+  font-size:16px;
+}
+
+button.action{
+  width:100%;
+  background:#27ae60;
+  color:white;
+  border:none;
+  padding:12px;
+  border-radius:10px;
+  cursor:pointer;
+  margin-top:12px;
+  font-family:'Kanit',sans-serif;
+  font-size:15px;
+}
+
+.voiceBtn{
+  background:#3498db !important;
+}
+
+.voiceBtn.listening{
+  background:#e67e22 !important;
+  animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+  0%{opacity:1;}
+  50%{opacity:.6;}
+  100%{opacity:1;}
+}
+
+.schedule-item{
+  background:#f0f9f0;
+  border:1px solid #c3e6cb;
+  border-radius:10px;
+  padding:10px;
+  margin-top:8px;
+  font-size:13px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.schedule-item .del{
+  background:none;
+  border:none;
+  color:#e74c3c;
+  cursor:pointer;
+  font-size:16px;
+  padding:0 5px;
+}
+
+#scheduleStatus{
+  margin-top:8px;
+  font-size:13px;
+}
+
+#voiceText{
+  margin-top:8px;
+  font-size:13px;
+  color:#555;
+  font-weight:600;
+}
+
+#schedulerStatus{
+  position:fixed;
+  bottom:15px;
+  right:15px;
+  background:#27ae60;
+  color:white;
+  padding:6px 12px;
+  border-radius:20px;
+  font-size:12px;
+  font-family:'Kanit',sans-serif;
+  opacity:0;
+  transition:opacity .5s;
+  pointer-events:none;
+  z-index:9999;
+}
+
+.schedule-form-group{
+  margin-top:15px;
+  display:flex;
+  flex-direction:column;
+}
+
+.schedule-form-group label{
+  font-size:15px;
+  color:#333;
+  font-weight:600;
+  margin-bottom:2px;
+}
+
+.schedule-form-group input[type="time"]{
+  width:100% !important;
+  max-width:100% !important;
+  margin-top:5px;
+  -webkit-appearance:none;
+}
+
+@media(max-width:900px){
+
+  .main{
+    grid-template-columns:1fr;
+  }
+
+  .device-area{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .card-header-flex{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .mode-control-group{
+    width:100%;
+    justify-content:space-between;
+  }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+
+  <div>
+    🌱 Smart Farm Control
+    <div id="user-display"></div>
+  </div>
+
+  <div class="header-right">
+    <button
+      class="page2btn"
+      onclick="goPage2()"
+    >
+      ประวัติ
+    </button>
+
+    <button
+      class="logoutbtn"
+      onclick="logout()"
+    >
+      ออกจากระบบ
+    </button>
+  </div>
+
+</div>
+
+<div id="schedulerStatus">
+  ⏱ ตรวจสอบเวลา...
+</div>
+
+<div class="container">
+
+<div class="main">
+
+<div>
+
+  <!-- SENSOR -->
+
+  <div
+    class="card"
+    style="background:linear-gradient(135deg,#34495e,#2c3e50);color:white;"
+  >
+
+    <h3
+      style="margin-top:0;color:#2ecc71;"
+    >
+      📊 ค่าจากเซนเซอร์ปัจจุบัน
+    </h3>
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:repeat(3,1fr);
+        gap:15px;
+        text-align:center;
+      "
+    >
+
+      <div
+        style="
+          background:rgba(255,255,255,.1);
+          padding:15px;
+          border-radius:12px;
+        "
+      >
+        <span style="font-size:30px;">🌡️</span>
+
+        <div style="font-size:14px;opacity:.8;">
+          อุณหภูมิ
+        </div>
+
+        <div
+          id="displayTemp"
+          style="font-size:24px;font-weight:bold;"
+        >
+          -- °C
+        </div>
+      </div>
+
+      <div
+        style="
+          background:rgba(255,255,255,.1);
+          padding:15px;
+          border-radius:12px;
+        "
+      >
+        <span style="font-size:30px;">🌾</span>
+
+        <div style="font-size:14px;opacity:.8;">
+          ระดับอาหาร
+        </div>
+
+        <div
+          id="displayFood"
+          style="font-size:24px;font-weight:bold;"
+        >
+          -- %
+        </div>
+      </div>
+
+      <div
+        style="
+          background:rgba(255,255,255,.1);
+          padding:15px;
+          border-radius:12px;
+        "
+      >
+        <span style="font-size:30px;">💧</span>
+
+        <div style="font-size:14px;opacity:.8;">
+          ระดับน้ำ
+        </div>
+
+        <div
+          id="displayWater"
+          style="font-size:24px;font-weight:bold;"
+        >
+          -- %
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- DEVICE -->
+
+  <div class="card">
+
+    <div class="card-header-flex">
+
+      <h2>
+        อุปกรณ์ทั้งหมด
+      </h2>
+
+      <div class="mode-control-group">
+
+        <div
+          id="globalModeText"
+          style="
+            font-size:14px;
+            font-weight:600;
+            color:#555;
+          "
+        >
+          โหมดภาพรวม: -
+        </div>
+
+        <button
+          id="globalModeAutoBtn"
+          class="action"
+          style="
+            margin-top:0;
+            padding:8px 12px;
+            background:#7f8c8d;
+            border-radius:8px;
+          "
+          onclick="changeGlobalMode('auto')"
+        >
+          🤖 Auto
+        </button>
+
+        <button
+          id="globalModeManualBtn"
+          class="action"
+          style="
+            margin-top:0;
+            padding:8px 12px;
+            background:#7f8c8d;
+            border-radius:8px;
+          "
+          onclick="changeGlobalMode('manual')"
+        >
+          🕹 Manual
+        </button>
+
+      </div>
+
+    </div>
+
+    <div
+      class="device-area"
+      id="deviceArea"
+    >
+
+      <div class="slot empty">ช่องที่ 1</div>
+      <div class="slot empty">ช่องที่ 2</div>
+      <div class="slot empty">ช่องที่ 3</div>
+      <div class="slot empty">ช่องที่ 4</div>
+      <div class="slot empty">ช่องที่ 5</div>
+      <div class="slot empty">ช่องที่ 6</div>
+      <div class="slot empty">ช่องที่ 7</div>
+      <div class="slot empty">ช่องที่ 8</div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<div>
+
+  <!-- ADD DEVICE -->
+
+  <div class="card">
+
+    <h3>
+      เพิ่มอุปกรณ์
+    </h3>
+
+    <input
+      id="deviceName"
+      placeholder="ชื่ออุปกรณ์"
+    >
+
+    <input
+      id="onKey"
+      placeholder="คำสั่งเสียงเปิด"
+    >
+
+    <input
+      id="offKey"
+      placeholder="คำสั่งเสียงปิด"
+    >
+
+    <input
+      id="pinInput"
+      placeholder="GPIO"
+    >
+
+    <button
+      class="action"
+      onclick="addDevice()"
+    >
+      เพิ่มอุปกรณ์
+    </button>
+
+  </div>
+
+  <!-- SCHEDULE -->
+
+  <div class="card">
+
+    <h3>
+      ตั้งเวลาทำงาน (ตามตารางเวลา)
+    </h3>
+
+    <select
+      id="deviceSelect"
+      onchange="updateDeviceScheduleUI()"
+    >
+
+      <option value="">
+        เลือกอุปกรณ์เพื่อตั้งเวลา
+      </option>
+
+    </select>
+
+    <div
+      id="deviceScheduleModeText"
+      style="
+        margin-top:8px;
+        font-size:14px;
+        font-weight:600;
+        color:#555;
+      "
+    >
+      สถานะตารางเวลาอุปกรณ์: -
+    </div>
+
+    <div
+      style="
+        margin-top:8px;
+        display:flex;
+        gap:10px;
+      "
+    >
+
+      <button
+        id="scheduleAutoBtn"
+        class="action"
+        style="
+          margin-top:0;
+          background:#7f8c8d;
+        "
+        onclick="changeDeviceScheduleMode('auto')"
+      >
+        เปิดตารางเวลา
+      </button>
+
+      <button
+        id="scheduleManualBtn"
+        class="action"
+        style="
+          margin-top:0;
+          background:#7f8c8d;
+        "
+        onclick="changeDeviceScheduleMode('manual')"
+      >
+        ปิดตารางเวลา
+      </button>
+
+    </div>
+
+    <hr
+      style="
+        border:0;
+        border-top:1px solid #eee;
+        margin:15px 0;
+      "
+    >
+
+    <div class="schedule-form-group">
+
+      <label>
+        เวลาเปิด
+      </label>
+
+      <input
+        type="time"
+        id="timeOn"
+      >
+
+    </div>
+
+    <div class="schedule-form-group">
+
+      <label>
+        เวลาปิด
+      </label>
+
+      <input
+        type="time"
+        id="timeOff"
+      >
+
+    </div>
+
+    <button
+      class="action"
+      onclick="saveSchedule()"
+    >
+      บันทึกเวลาทำงาน
+    </button>
+
+    <div id="scheduleStatus"></div>
+
+    <div id="scheduleList"></div>
+
+  </div>
+
+  <!-- VOICE -->
+
+  <div class="card">
+
+    <h3>
+      ควบคุมด้วยเสียง
+    </h3>
+
+    <button
+      class="action voiceBtn"
+      id="voiceButton"
+      onclick="startVoice()"
+    >
+      🎤 เริ่มฟังคำสั่ง
+    </button>
+
+    <div id="voiceText"></div>
+
+  </div>
+
+</div>
+
+</div>
+</div>
+
 <script type="module">
 
 import {
@@ -2006,3 +2677,6 @@ window.updateDeviceScheduleUI =
 checkAuthAndLoad();
 
 </script>
+
+</body>
+</html>
