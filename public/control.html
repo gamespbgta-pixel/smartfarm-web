@@ -3,121 +3,481 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Smart Farm Control</title>
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+
+<link
+  href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap"
+  rel="stylesheet"
+>
+
 <style>
-*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body{ margin:0; font-family:'Kanit',sans-serif; background:linear-gradient(135deg,#e8f5e9,#f1f8ff); }
-.header{ background:linear-gradient(135deg,#2ecc71,#27ae60); color:white; padding:15px 25px; display:flex; justify-content:space-between; align-items:center; }
-.header-right{ display:flex; gap:10px; }
-.page2btn,.logoutbtn{ border:none; padding:10px 15px; border-radius:10px; cursor:pointer; font-family:'Kanit',sans-serif; }
-.page2btn{ background:white; color:#27ae60; }
-.logoutbtn{ background:#e74c3c; color:white; }
-.container{ max-width:1300px; margin:auto; padding:25px; }
-.main{ display:grid; grid-template-columns:2fr 1fr; gap:25px; }
-.card{ background:white; border-radius:20px; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,.1); margin-bottom:20px; }
 
-.card-header-flex { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px; }
-.card-header-flex h2 { margin:0; }
-.mode-control-group { display:flex; align-items:center; gap:10px; }
-
-.device-area{ display:grid; grid-template-columns:repeat(4,1fr); gap:15px; }
-.slot{ border:2px dashed #ccc; border-radius:20px; min-height:280px; text-align:center; padding:15px; position:relative; }
-.slot.empty{ display:flex; align-items:center; justify-content:center; color:#999; min-height:250px; }
-.device{ width:90px; height:90px; border-radius:50%; border:none; font-size:18px; font-weight:bold; cursor:pointer; margin:10px auto; display:block; transition: transform 0.1s ease; }
-.device:active{ transform: scale(0.95); }
-.device.on{ background:#2ecc71; color:white; }
-.device.off{ background:#e74c3c; color:white; }
-.deleteBtn{ position:absolute; top:10px; right:10px; border:none; background:red; color:white; border-radius:50%; width:30px; height:30px; cursor:pointer; }
-input,select{ width:100%; padding:12px; margin-top:10px; border:1px solid #ddd; border-radius:10px; font-family:'Kanit',sans-serif; font-size:16px; box-sizing:border-box; }
-button.action{ width:100%; background:#27ae60; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer; margin-top:12px; font-family:'Kanit',sans-serif; font-size:15px; }
-.voiceBtn{ background:#3498db !important; }
-.voiceBtn.listening{ background:#e67e22 !important; animation: pulse 1.5s infinite; }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-.schedule-item{ background:#f0f9f0; border:1px solid #c3e6cb; border-radius:10px; padding:10px; margin-top:8px; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
-.schedule-item .del{ background:none; border:none; color:#e74c3c; cursor:pointer; font-size:16px; padding:0 5px; }
-#scheduleStatus{ margin-top:8px; font-size:13px; }
-#voiceText{ margin-top:8px; font-size:13px; color:#555; font-weight:600; }
-#schedulerStatus{ position:fixed; bottom:15px; right:15px; background:#27ae60; color:white; padding:6px 12px; border-radius:20px; font-size:12px; font-family:'Kanit',sans-serif; opacity:0; transition:opacity 0.5s; pointer-events:none; z-index:9999; }
-
-.schedule-form-group {
-  margin-top: 15px;
-  display: flex;
-  flex-direction: column;
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
 }
-.schedule-form-group label {
-  font-size: 15px;
-  color: #333;
-  font-weight: 600;
-  margin-bottom: 2px;
+
+body{
+  margin:0;
+  font-family:'Kanit',sans-serif;
+  background:linear-gradient(135deg,#e8f5e9,#f1f8ff);
 }
-.schedule-form-group input[type="time"] {
-  width: 100% !important;
-  max-width: 100% !important;
-  margin-top: 5px;
-  -webkit-appearance: none;
+
+.header{
+  background:linear-gradient(135deg,#2ecc71,#27ae60);
+  color:white;
+  padding:15px 25px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.header-right{
+  display:flex;
+  gap:10px;
+}
+
+.page2btn,
+.logoutbtn{
+  border:none;
+  padding:10px 15px;
+  border-radius:10px;
+  cursor:pointer;
+  font-family:'Kanit',sans-serif;
+}
+
+.page2btn{
+  background:white;
+  color:#27ae60;
+}
+
+.logoutbtn{
+  background:#e74c3c;
+  color:white;
+}
+
+.container{
+  max-width:1300px;
+  margin:auto;
+  padding:25px;
+}
+
+.main{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:25px;
+}
+
+.card{
+  background:white;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+  margin-bottom:20px;
+}
+
+.card-header-flex{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:15px;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.card-header-flex h2{
+  margin:0;
+}
+
+.mode-control-group{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.device-area{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:15px;
+}
+
+.slot{
+  border:2px dashed #ccc;
+  border-radius:20px;
+  min-height:280px;
+  text-align:center;
+  padding:15px;
+  position:relative;
+}
+
+.slot.empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#999;
+  min-height:250px;
+}
+
+.device{
+  width:90px;
+  height:90px;
+  border-radius:50%;
+  border:none;
+  font-size:18px;
+  font-weight:bold;
+  cursor:pointer;
+  margin:10px auto;
+  display:block;
+  transition:transform .1s ease;
+}
+
+.device:active{
+  transform:scale(.95);
+}
+
+.device.on{
+  background:#2ecc71;
+  color:white;
+}
+
+.device.off{
+  background:#e74c3c;
+  color:white;
+}
+
+.deleteBtn{
+  position:absolute;
+  top:10px;
+  right:10px;
+  border:none;
+  background:red;
+  color:white;
+  border-radius:50%;
+  width:30px;
+  height:30px;
+  cursor:pointer;
+}
+
+input,
+select{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:1px solid #ddd;
+  border-radius:10px;
+  font-family:'Kanit',sans-serif;
+  font-size:16px;
+}
+
+button.action{
+  width:100%;
+  background:#27ae60;
+  color:white;
+  border:none;
+  padding:12px;
+  border-radius:10px;
+  cursor:pointer;
+  margin-top:12px;
+  font-family:'Kanit',sans-serif;
+  font-size:15px;
+}
+
+.voiceBtn{
+  background:#3498db !important;
+}
+
+.voiceBtn.listening{
+  background:#e67e22 !important;
+  animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+  0%{opacity:1;}
+  50%{opacity:.6;}
+  100%{opacity:1;}
+}
+
+.schedule-item{
+  background:#f0f9f0;
+  border:1px solid #c3e6cb;
+  border-radius:10px;
+  padding:10px;
+  margin-top:8px;
+  font-size:13px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.schedule-item .del{
+  background:none;
+  border:none;
+  color:#e74c3c;
+  cursor:pointer;
+  font-size:16px;
+  padding:0 5px;
+}
+
+#scheduleStatus{
+  margin-top:8px;
+  font-size:13px;
+}
+
+#voiceText{
+  margin-top:8px;
+  font-size:13px;
+  color:#555;
+  font-weight:600;
+}
+
+#schedulerStatus{
+  position:fixed;
+  bottom:15px;
+  right:15px;
+  background:#27ae60;
+  color:white;
+  padding:6px 12px;
+  border-radius:20px;
+  font-size:12px;
+  font-family:'Kanit',sans-serif;
+  opacity:0;
+  transition:opacity .5s;
+  pointer-events:none;
+  z-index:9999;
+}
+
+.schedule-form-group{
+  margin-top:15px;
+  display:flex;
+  flex-direction:column;
+}
+
+.schedule-form-group label{
+  font-size:15px;
+  color:#333;
+  font-weight:600;
+  margin-bottom:2px;
+}
+
+.schedule-form-group input[type="time"]{
+  width:100% !important;
+  max-width:100% !important;
+  margin-top:5px;
+  -webkit-appearance:none;
 }
 
 @media(max-width:900px){
-  .main{ grid-template-columns:1fr; }
-  .device-area{ grid-template-columns:repeat(2,1fr); }
-  .card-header-flex { flex-direction: column; align-items: flex-start; }
-  .mode-control-group { width: 100%; justify-content: space-between; }
+
+  .main{
+    grid-template-columns:1fr;
+  }
+
+  .device-area{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .card-header-flex{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .mode-control-group{
+    width:100%;
+    justify-content:space-between;
+  }
+
 }
+
 </style>
 </head>
+
 <body>
 
 <div class="header">
+
   <div>
     🌱 Smart Farm Control
     <div id="user-display"></div>
   </div>
+
   <div class="header-right">
-    <button class="page2btn" onclick="goPage2()">ประวัติ</button>
-    <button class="logoutbtn" onclick="logout()">ออกจากระบบ</button>
+    <button
+      class="page2btn"
+      onclick="goPage2()"
+    >
+      ประวัติ
+    </button>
+
+    <button
+      class="logoutbtn"
+      onclick="logout()"
+    >
+      ออกจากระบบ
+    </button>
   </div>
+
 </div>
 
-<div id="schedulerStatus">⏱ ตรวจสอบเวลา...</div>
+<div id="schedulerStatus">
+  ⏱ ตรวจสอบเวลา...
+</div>
 
 <div class="container">
+
 <div class="main">
 
 <div>
-  <!-- 📊 ส่วนการ์ดแสดงผลเซนเซอร์ล่าสุดแบบ 3 ช่อง -->
-  <div class="card" style="background: linear-gradient(135deg, #34495e, #2c3e50); color: white;">
-    <h3 style="margin-top: 0; color: #2ecc71;">📊 ค่าจากเซนเซอร์ปัจจุบัน</h3>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
-      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
-        <span style="font-size: 30px;">🌡️</span>
-        <div style="font-size: 14px; opacity: 0.8;">อุณหภูมิ</div>
-        <div id="displayTemp" style="font-size: 24px; font-weight: bold;">-- °C</div>
+
+  <!-- SENSOR -->
+
+  <div
+    class="card"
+    style="background:linear-gradient(135deg,#34495e,#2c3e50);color:white;"
+  >
+
+    <h3
+      style="margin-top:0;color:#2ecc71;"
+    >
+      📊 ค่าจากเซนเซอร์ปัจจุบัน
+    </h3>
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:repeat(3,1fr);
+        gap:15px;
+        text-align:center;
+      "
+    >
+
+      <div
+        style="
+          background:rgba(255,255,255,.1);
+          padding:15px;
+          border-radius:12px;
+        "
+      >
+        <span style="font-size:30px;">🌡️</span>
+
+        <div style="font-size:14px;opacity:.8;">
+          อุณหภูมิ
+        </div>
+
+        <div
+          id="displayTemp"
+          style="font-size:24px;font-weight:bold;"
+        >
+          -- °C
+        </div>
       </div>
-      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
-        <span style="font-size: 30px;">🌾</span>
-        <div style="font-size: 14px; opacity: 0.8;">ระดับอาหาร</div>
-        <div id="displayFood" style="font-size: 24px; font-weight: bold;">-- %</div>
+
+      <div
+        style="
+          background:rgba(255,255,255,.1);
+          padding:15px;
+          border-radius:12px;
+        "
+      >
+        <span style="font-size:30px;">🌾</span>
+
+        <div style="font-size:14px;opacity:.8;">
+          ระดับอาหาร
+        </div>
+
+        <div
+          id="displayFood"
+          style="font-size:24px;font-weight:bold;"
+        >
+          -- %
+        </div>
       </div>
-      <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
-        <span style="font-size: 30px;">💧</span>
-        <div style="font-size: 14px; opacity: 0.8;">ระดับน้ำ</div>
-        <div id="displayWater" style="font-size: 24px; font-weight: bold;">-- %</div>
+
+      <div
+        style="
+          background:rgba(255,255,255,.1);
+          padding:15px;
+          border-radius:12px;
+        "
+      >
+        <span style="font-size:30px;">💧</span>
+
+        <div style="font-size:14px;opacity:.8;">
+          ระดับน้ำ
+        </div>
+
+        <div
+          id="displayWater"
+          style="font-size:24px;font-weight:bold;"
+        >
+          -- %
+        </div>
       </div>
+
     </div>
+
   </div>
 
+  <!-- DEVICE -->
+
   <div class="card">
+
     <div class="card-header-flex">
-      <h2>อุปกรณ์ทั้งหมด</h2>
+
+      <h2>
+        อุปกรณ์ทั้งหมด
+      </h2>
+
       <div class="mode-control-group">
-         <div id="globalModeText" style="font-size:14px; font-weight:600; color:#555;">โหมดภาพรวม: -</div>
-         <button id="globalModeAutoBtn" class="action" style="margin-top:0; padding:8px 12px; background:#7f8c8d; border-radius:8px;" onclick="changeGlobalMode('auto')">🤖 Auto</button>
-         <button id="globalModeManualBtn" class="action" style="margin-top:0; padding:8px 12px; background:#7f8c8d; border-radius:8px;" onclick="changeGlobalMode('manual')">🕹 Manual</button>
+
+        <div
+          id="globalModeText"
+          style="
+            font-size:14px;
+            font-weight:600;
+            color:#555;
+          "
+        >
+          โหมดภาพรวม: -
+        </div>
+
+        <button
+          id="globalModeAutoBtn"
+          class="action"
+          style="
+            margin-top:0;
+            padding:8px 12px;
+            background:#7f8c8d;
+            border-radius:8px;
+          "
+          onclick="changeGlobalMode('auto')"
+        >
+          🤖 Auto
+        </button>
+
+        <button
+          id="globalModeManualBtn"
+          class="action"
+          style="
+            margin-top:0;
+            padding:8px 12px;
+            background:#7f8c8d;
+            border-radius:8px;
+          "
+          onclick="changeGlobalMode('manual')"
+        >
+          🕹 Manual
+        </button>
+
       </div>
+
     </div>
-    
-    <div class="device-area" id="deviceArea">
+
+    <div
+      class="device-area"
+      id="deviceArea"
+    >
+
       <div class="slot empty">ช่องที่ 1</div>
       <div class="slot empty">ช่องที่ 2</div>
       <div class="slot empty">ช่องที่ 3</div>
@@ -126,157 +486,414 @@ button.action{ width:100%; background:#27ae60; color:white; border:none; padding
       <div class="slot empty">ช่องที่ 6</div>
       <div class="slot empty">ช่องที่ 7</div>
       <div class="slot empty">ช่องที่ 8</div>
+
     </div>
+
   </div>
+
 </div>
 
 <div>
-  <div class="card">
-    <h3>เพิ่มอุปกรณ์</h3>
-    <input id="deviceName" placeholder="ชื่ออุปกรณ์">
-    <input id="onKey" placeholder="คำสั่งเสียงเปิด">
-    <input id="offKey" placeholder="คำสั่งเสียงปิด">
-    <input id="pinInput" placeholder="GPIO">
-    <button class="action" onclick="addDevice()">เพิ่มอุปกรณ์</button>
-  </div>
+
+  <!-- ADD DEVICE -->
 
   <div class="card">
-    <h3>ตั้งเวลาทำงาน (ตามตารางเวลา)</h3>
-    <select id="deviceSelect" onchange="updateDeviceScheduleUI()">
-      <option value="">เลือกอุปกรณ์เพื่อตั้งเวลา</option>
+
+    <h3>
+      เพิ่มอุปกรณ์
+    </h3>
+
+    <input
+      id="deviceName"
+      placeholder="ชื่ออุปกรณ์"
+    >
+
+    <input
+      id="onKey"
+      placeholder="คำสั่งเสียงเปิด"
+    >
+
+    <input
+      id="offKey"
+      placeholder="คำสั่งเสียงปิด"
+    >
+
+    <input
+      id="pinInput"
+      placeholder="GPIO"
+    >
+
+    <button
+      class="action"
+      onclick="addDevice()"
+    >
+      เพิ่มอุปกรณ์
+    </button>
+
+  </div>
+
+  <!-- SCHEDULE -->
+
+  <div class="card">
+
+    <h3>
+      ตั้งเวลาทำงาน (ตามตารางเวลา)
+    </h3>
+
+    <select
+      id="deviceSelect"
+      onchange="updateDeviceScheduleUI()"
+    >
+
+      <option value="">
+        เลือกอุปกรณ์เพื่อตั้งเวลา
+      </option>
+
     </select>
-    
-    <div id="deviceScheduleModeText" style="margin-top:8px; font-size:14px; font-weight:600; color:#555;">สถานะตารางเวลาอุปกรณ์: -</div>
-    <div style="margin-top:8px; display:flex; gap:10px;">
-       <button id="scheduleAutoBtn" class="action" style="margin-top:0; background:#7f8c8d;" onclick="changeDeviceScheduleMode('auto')">เปิดตารางเวลา</button>
-       <button id="scheduleManualBtn" class="action" style="margin-top:0; background:#7f8c8d;" onclick="changeDeviceScheduleMode('manual')">ปิดตารางเวลา</button>
+
+    <div
+      id="deviceScheduleModeText"
+      style="
+        margin-top:8px;
+        font-size:14px;
+        font-weight:600;
+        color:#555;
+      "
+    >
+      สถานะตารางเวลาอุปกรณ์: -
     </div>
-    
-    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-    
+
+    <div
+      style="
+        margin-top:8px;
+        display:flex;
+        gap:10px;
+      "
+    >
+
+      <button
+        id="scheduleAutoBtn"
+        class="action"
+        style="
+          margin-top:0;
+          background:#7f8c8d;
+        "
+        onclick="changeDeviceScheduleMode('auto')"
+      >
+        เปิดตารางเวลา
+      </button>
+
+      <button
+        id="scheduleManualBtn"
+        class="action"
+        style="
+          margin-top:0;
+          background:#7f8c8d;
+        "
+        onclick="changeDeviceScheduleMode('manual')"
+      >
+        ปิดตารางเวลา
+      </button>
+
+    </div>
+
+    <hr
+      style="
+        border:0;
+        border-top:1px solid #eee;
+        margin:15px 0;
+      "
+    >
+
     <div class="schedule-form-group">
-      <label>เวลาเปิด</label>
-      <input type="time" id="timeOn">
+
+      <label>
+        เวลาเปิด
+      </label>
+
+      <input
+        type="time"
+        id="timeOn"
+      >
+
     </div>
-    
+
     <div class="schedule-form-group">
-      <label>เวลาปิด</label>
-      <input type="time" id="timeOff">
+
+      <label>
+        เวลาปิด
+      </label>
+
+      <input
+        type="time"
+        id="timeOff"
+      >
+
     </div>
-    
-    <button class="action" onclick="saveSchedule()">บันทึกเวลาทำงาน</button>
+
+    <button
+      class="action"
+      onclick="saveSchedule()"
+    >
+      บันทึกเวลาทำงาน
+    </button>
+
     <div id="scheduleStatus"></div>
+
     <div id="scheduleList"></div>
+
   </div>
 
+  <!-- VOICE -->
+
   <div class="card">
-    <h3>ควบคุมด้วยเสียง</h3>
-    <button class="action voiceBtn" id="voiceButton" onclick="startVoice()">🎤 เริ่มฟังคำสั่ง</button>
+
+    <h3>
+      ควบคุมด้วยเสียง
+    </h3>
+
+    <button
+      class="action voiceBtn"
+      id="voiceButton"
+      onclick="startVoice()"
+    >
+      🎤 เริ่มฟังคำสั่ง
+    </button>
+
     <div id="voiceText"></div>
+
   </div>
+
 </div>
 
 </div>
 </div>
 
 <script type="module">
+
 import {
   createClient
 } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL = "https://zweosffxlaghnrvimdwx.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
+// ==================================================
+// Supabase
+// ==================================================
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL =
+  "https://zweosffxlaghnrvimdwx.supabase.co";
+
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3ZW9zZmZ4bGFnaG5ydmltZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDU0MDgsImV4cCI6MjA5NzUyMTQwOH0.7mlHv9Vl5mo0RLRFUfDB1D75L3OaHKoqpBNh0xfG2JE";
+
+const supabase =
+  createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+// ==================================================
+// Variables
+// ==================================================
 
 let ws = null;
-let devices = [];
-let schedules = [];
-let currentUser = null;
-let schedulerInterval = null;
-let recognition = null;
-let lastScheduleAction = {};
-let deviceModes = JSON.parse(localStorage.getItem("deviceModes") || "{}");
-let globalMode = localStorage.getItem("globalMode") || "manual";
 
-async function checkAuthAndLoad() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+let devices = [];
+
+let schedules = [];
+
+let currentUser = null;
+
+let schedulerInterval = null;
+
+let recognition = null;
+
+// สถานะล่าสุดของ Schedule
+let lastScheduleAction = {};
+
+// Mode ของแต่ละอุปกรณ์
+let deviceModes =
+  JSON.parse(
+    localStorage.getItem("deviceModes") || "{}"
+  );
+
+// Global Mode
+let globalMode =
+  localStorage.getItem("globalMode") || "manual";
+
+// ==================================================
+// AUTH
+// ==================================================
+
+async function checkAuthAndLoad()
+{
+  const {
+    data: {
+      user
+    }
+  } =
+    await supabase.auth.getUser();
+
+  if (!user)
+  {
     location.href = "index.html";
     return;
   }
+
   currentUser = user;
-  const el = document.getElementById("user-display");
-  if (el) {
-    el.innerHTML = "👤 " + user.email;
+
+  const el =
+    document.getElementById(
+      "user-display"
+    );
+
+  if (el)
+  {
+    el.innerHTML =
+      "👤 " + user.email;
   }
+
   await loadDevices();
+
   await loadSchedules();
+
   updateGlobalModeUI();
+
   connectWS();
+
   startScheduler();
 }
 
-async function loadDevices() {
-  const { data, error } = await supabase
-    .from("devices")
-    .select("*")
-    .eq("user_id", currentUser.id)
-    .order("created_at");
+// ==================================================
+// LOAD DEVICES
+// ==================================================
 
-  if (error) {
+async function loadDevices()
+{
+  const {
+    data,
+    error
+  } =
+    await supabase
+      .from("devices")
+      .select("*")
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .order("created_at");
+
+  if (error)
+  {
     console.error(error);
     return;
   }
 
   devices = data || [];
-  if (!devices.length) {
+
+  if (!devices.length)
+  {
     renderDevices({});
     return;
   }
 
   const latestStatusMap = {};
-  await Promise.all(
-    devices.map(async d => {
-      const { data } = await supabase
-        .from("device_status_logs")
-        .select("status")
-        .eq("device_id", d.id)
-        .order("changed_at", { ascending: false })
-        .limit(1);
 
-      latestStatusMap[d.id] = data && data.length ? data[0].status === true : false;
-    })
+  await Promise.all(
+    devices.map(
+      async d =>
+      {
+        const {
+          data
+        } =
+          await supabase
+            .from("device_status_logs")
+            .select("status")
+            .eq(
+              "device_id",
+              d.id
+            )
+            .order(
+              "changed_at",
+              {
+                ascending:false
+              }
+            )
+            .limit(1);
+
+        latestStatusMap[d.id] =
+          data &&
+          data.length
+            ? data[0].status === true
+            : false;
+      }
+    )
   );
 
-  renderDevices(latestStatusMap);
+  renderDevices(
+    latestStatusMap
+  );
+
   updateDeviceScheduleUI();
 }
 
-async function loadSchedules() {
-  if (!devices.length) {
+// ==================================================
+// LOAD SCHEDULES
+// ==================================================
+
+async function loadSchedules()
+{
+  if (!devices.length)
+  {
     schedules = [];
+
     renderScheduleList();
+
     return;
   }
 
-  const deviceIds = devices.map(d => d.id);
-  const { data, error } = await supabase
-    .from("schedules")
-    .select("*, devices(id, name, pin)")
-    .in("device_id", deviceIds);
+  const deviceIds =
+    devices.map(
+      d => d.id
+    );
 
-  if (error) {
+  const {
+    data,
+    error
+  } =
+    await supabase
+      .from("schedules")
+      .select(
+        "*, devices(id, name, pin)"
+      )
+      .in(
+        "device_id",
+        deviceIds
+      );
+
+  if (error)
+  {
     console.error(error);
     return;
   }
 
   schedules = data || [];
+
   renderScheduleList();
 }
 
-function renderDevices(latestStatusMap = {}) {
-  const area = document.getElementById("deviceArea");
+// ==================================================
+// RENDER DEVICES
+// ==================================================
+
+function renderDevices(
+  latestStatusMap = {}
+)
+{
+  const area =
+    document.getElementById(
+      "deviceArea"
+    );
+
   area.innerHTML = `
     <div class="slot empty">ช่องที่ 1</div>
     <div class="slot empty">ช่องที่ 2</div>
@@ -288,539 +905,1842 @@ function renderDevices(latestStatusMap = {}) {
     <div class="slot empty">ช่องที่ 8</div>
   `;
 
-  const selectEl = document.getElementById("deviceSelect");
-  const currentSelectVal = selectEl ? selectEl.value : "";
-  if (selectEl) {
-    selectEl.innerHTML = '<option value="">เลือกอุปกรณ์เพื่อตั้งเวลา</option>';
+  const selectEl =
+    document.getElementById(
+      "deviceSelect"
+    );
+
+  const currentSelectVal =
+    selectEl
+      ? selectEl.value
+      : "";
+
+  if (selectEl)
+  {
+    selectEl.innerHTML =
+      `
+      <option value="">
+        เลือกอุปกรณ์เพื่อตั้งเวลา
+      </option>
+      `;
   }
 
-  devices.forEach(d => {
-    const slot = document.querySelector(".slot.empty");
-    if (!slot) return;
-    slot.classList.remove("empty");
-    slot.dataset.deviceId = d.id;
+  devices.forEach(
+    d =>
+    {
+      const slot =
+        document.querySelector(
+          ".slot.empty"
+        );
 
-    const isDeviceOn = latestStatusMap[d.id] === true;
-    const btnClass = isDeviceOn ? "device on" : "device off";
-    const btnText = isDeviceOn ? "ON" : "OFF";
-    const currentMode = deviceModes[d.id] || "manual";
+      if (!slot)
+        return;
 
-    const modeBadge = currentMode === "auto"
-      ? `<span style="background:#3498db; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🤖 Auto</span>`
-      : `<span style="background:#e67e22; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">🕹 Manual</span>`;
+      slot.classList.remove(
+        "empty"
+      );
 
-    let disabledStyle = "";
-    if (globalMode === "auto") {
-      disabledStyle = "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
+      slot.dataset.deviceId =
+        d.id;
+
+      const isDeviceOn =
+        latestStatusMap[d.id] === true;
+
+      const btnClass =
+        isDeviceOn
+          ? "device on"
+          : "device off";
+
+      const btnText =
+        isDeviceOn
+          ? "ON"
+          : "OFF";
+
+      const currentMode =
+        deviceModes[d.id] ||
+        "manual";
+
+      const modeBadge =
+        currentMode === "auto"
+
+          ? `
+            <span
+              style="
+                background:#3498db;
+                color:white;
+                padding:3px 10px;
+                border-radius:12px;
+                font-size:12px;
+                font-weight:600;
+              "
+            >
+              🤖 Auto
+            </span>
+          `
+
+          : `
+            <span
+              style="
+                background:#e67e22;
+                color:white;
+                padding:3px 10px;
+                border-radius:12px;
+                font-size:12px;
+                font-weight:600;
+              "
+            >
+              🕹 Manual
+            </span>
+          `;
+
+      let disabledStyle = "";
+
+      if (
+        globalMode === "auto"
+      )
+      {
+        disabledStyle =
+          "opacity:.5;cursor:not-allowed;filter:grayscale(50%);";
+      }
+
+      slot.innerHTML = `
+
+        <button
+          class="deleteBtn"
+          onclick="deleteDevice('${d.id}')"
+        >
+          ✕
+        </button>
+
+        <h3 style="margin-bottom:6px;">
+          ${d.name}
+        </h3>
+
+        <div style="margin-bottom:10px;">
+          ตารางเวลา: ${modeBadge}
+        </div>
+
+        <button
+          class="${btnClass}"
+          style="${disabledStyle}"
+          id="btn-${d.id}"
+          onclick="
+            toggleDevice(
+              '${d.id}',
+              '${d.pin}'
+            )
+          "
+        >
+          ${btnText}
+        </button>
+
+        <div style="margin-top:6px;">
+          GPIO ${d.pin}
+        </div>
+
+        <div>
+          🎤 เปิด : ${d.on_key}
+        </div>
+
+        <div>
+          🎤 ปิด : ${d.off_key}
+        </div>
+
+      `;
+
+      if (selectEl)
+      {
+        selectEl.innerHTML +=
+          `
+          <option value="${d.id}">
+            ${d.name}
+          </option>
+          `;
+      }
     }
+  );
 
-    slot.innerHTML = `
-      <button class="deleteBtn" onclick="deleteDevice('${d.id}')">✕</button>
-      <h3 style="margin-bottom:6px;">${d.name}</h3>
-      <div style="margin-bottom:10px;">ตารางเวลา: ${modeBadge}</div>
-      <button class="${btnClass}" style="${disabledStyle}" id="btn-${d.id}" onclick="toggleDevice('${d.id}','${d.pin}')">${btnText}</button>
-      <div style="margin-top:6px;">GPIO ${d.pin}</div>
-      <div>🎤 เปิด : ${d.on_key}</div>
-      <div>🎤 ปิด : ${d.off_key}</div>
-    `;
-
-    if (selectEl) {
-      selectEl.innerHTML += `<option value="${d.id}">${d.name}</option>`;
-    }
-  });
-
-  if (selectEl && currentSelectVal) {
-    selectEl.value = currentSelectVal;
+  if (
+    selectEl &&
+    currentSelectVal
+  )
+  {
+    selectEl.value =
+      currentSelectVal;
   }
 }
 
-function renderScheduleList() {
-  const list = document.getElementById("scheduleList");
-  if (!list) return;
+// ==================================================
+// RENDER SCHEDULE
+// ==================================================
 
-  if (!schedules.length) {
+function renderScheduleList()
+{
+  const list =
+    document.getElementById(
+      "scheduleList"
+    );
+
+  if (!list)
+    return;
+
+  if (!schedules.length)
+  {
     list.innerHTML = "";
     return;
   }
 
-  list.innerHTML = `<div style="margin-top:12px; font-size:13px; color:#555; font-weight:600">รายการเวลาที่ตั้งไว้</div>`;
-  schedules.forEach(s => {
-    const name = s.devices?.name || "ไม่ทราบชื่อ";
-    list.innerHTML += `
-      <div class="schedule-item">
-        <span>🔧 ${name} — เปิด ${s.time_on} / ปิด ${s.time_off}</span>
-        <button class="del" onclick="deleteSchedule('${s.device_id}')">🗑</button>
-      </div>
+  list.innerHTML =
+    `
+    <div
+      style="
+        margin-top:12px;
+        font-size:13px;
+        color:#555;
+        font-weight:600;
+      "
+    >
+      รายการเวลาที่ตั้งไว้
+    </div>
     `;
-  });
+
+  schedules.forEach(
+    s =>
+    {
+      const name =
+        s.devices?.name ||
+        "ไม่ทราบชื่อ";
+
+      list.innerHTML +=
+        `
+        <div class="schedule-item">
+
+          <span>
+            🔧 ${name}
+            —
+            เปิด ${s.time_on}
+            /
+            ปิด ${s.time_off}
+          </span>
+
+          <button
+            class="del"
+            onclick="
+              deleteSchedule(
+                '${s.device_id}'
+              )
+            "
+          >
+            🗑
+          </button>
+
+        </div>
+        `;
+    }
+  );
 }
 
-function getCurrentTime() {
-  const now = new Date();
-  return now.getHours().toString().padStart(2, "0") + ":" + now.getMinutes().toString().padStart(2, "0");
+// ==================================================
+// CURRENT TIME
+// ==================================================
+
+function getCurrentTime()
+{
+  const now =
+    new Date();
+
+  return (
+    now.getHours()
+      .toString()
+      .padStart(2,"0")
+    +
+    ":"
+    +
+    now.getMinutes()
+      .toString()
+      .padStart(2,"0")
+  );
 }
 
-function timeToMinutes(time) {
-  if (!time) return -1;
-  const clean = time.substring(0, 5);
-  const [h, m] = clean.split(":").map(Number);
-  return h * 60 + m;
-}
+// ==================================================
+// TIME -> MINUTES
+// ==================================================
 
-function isTimeInSchedule(current, timeOn, timeOff) {
-  const now = timeToMinutes(current);
-  const on = timeToMinutes(timeOn);
-  const off = timeToMinutes(timeOff);
+function timeToMinutes(
+  time
+)
+{
+  if (!time)
+    return -1;
 
-  if (now < 0 || on < 0 || off < 0) return false;
-  if (on === off) return false;
+  const clean =
+    time.substring(0,5);
 
-  if (on < off) {
-    return now >= on && now < off;
+  const [
+    h,
+    m
+  ] =
+    clean
+      .split(":")
+      .map(Number);
+
+  if (
+    Number.isNaN(h) ||
+    Number.isNaN(m)
+  )
+  {
+    return -1;
   }
-  return now >= on || now < off;
+
+  return (
+    h * 60 + m
+  );
 }
 
-async function setDeviceState(id, pin, targetState, fromSchedule = false) {
-  const btn = document.getElementById("btn-" + id);
-  if (btn) {
-    if (targetState === "on") {
-      btn.className = "device on";
-      btn.innerHTML = "ON";
-    } else {
-      btn.className = "device off";
-      btn.innerHTML = "OFF";
+// ==================================================
+// CHECK SCHEDULE TIME
+// ==================================================
+
+function isTimeInSchedule(
+  current,
+  timeOn,
+  timeOff
+)
+{
+  const now =
+    timeToMinutes(
+      current
+    );
+
+  const on =
+    timeToMinutes(
+      timeOn
+    );
+
+  const off =
+    timeToMinutes(
+      timeOff
+    );
+
+  if (
+    now < 0 ||
+    on < 0 ||
+    off < 0
+  )
+  {
+    return false;
+  }
+
+  if (on === off)
+  {
+    return false;
+  }
+
+  // เช่น 10:00 - 15:00
+  if (on < off)
+  {
+    return (
+      now >= on &&
+      now < off
+    );
+  }
+
+  // เช่น 23:00 - 02:00
+  return (
+    now >= on ||
+    now < off
+  );
+}
+
+// ==================================================
+// SET DEVICE STATE
+// ==================================================
+
+async function setDeviceState(
+  id,
+  pin,
+  targetState,
+  fromSchedule = false
+)
+{
+  const btn =
+    document.getElementById(
+      "btn-" + id
+    );
+
+  if (btn)
+  {
+    if (
+      targetState === "on"
+    )
+    {
+      btn.className =
+        "device on";
+
+      btn.innerHTML =
+        "ON";
+    }
+    else
+    {
+      btn.className =
+        "device off";
+
+      btn.innerHTML =
+        "OFF";
     }
   }
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    const command = {
-      type: "control",
-      device: String(pin),
-      status: targetState,
-      isSchedule: fromSchedule
-    };
-    ws.send(JSON.stringify(command));
+  // ==============================================
+  // ต้องมี WebSocket
+  // ==============================================
+
+  if (
+    !ws ||
+    ws.readyState !== WebSocket.OPEN
+  )
+  {
+    console.warn(
+      "[WS] ยังไม่ได้เชื่อมต่อ"
+    );
+
+    return false;
   }
 
-  await supabase.from("device_status_logs").insert([{
-    device_id: id,
-    status: targetState === "on"
-  }]);
-}
+  const command =
+  {
+    type:"control",
 
-window.toggleDevice = async (id, pin) => {
-  if (globalMode === "auto") {
-    alert("ระบบอยู่ในโหมด Auto ไม่สามารถควบคุมด้วยตนเองได้");
-    return;
-  }
-  const btn = document.getElementById("btn-" + id);
-  if (!btn) return;
-  const targetState = btn.classList.contains("on") ? "off" : "on";
-  await setDeviceState(id, pin, targetState, false);
-};
+    device:String(pin),
 
-// ==================================================
-// FIXED: checkSchedules Logic
-// ==================================================
-async function checkSchedules() {
-  if (!devices.length) return;
-  const currentTime = getCurrentTime();
+    status:targetState,
 
-  for (const s of schedules) {
-    const device = s.devices;
-    if (!device) continue;
-
-    const currentMode = deviceModes[device.id] || "manual";
-    if (currentMode !== "auto") continue;
-
-    const timeOn = s.time_on ? s.time_on.substring(0, 5) : "";
-    const timeOff = s.time_off ? s.time_off.substring(0, 5) : "";
-    if (!timeOn || !timeOff) continue;
-
-    const active = isTimeInSchedule(currentTime, timeOn, timeOff);
-    const targetState = active ? "on" : "off";
-    const lastState = lastScheduleAction[device.id];
-
-    if (lastState !== targetState) {
-      lastScheduleAction[device.id] = targetState;
-      console.log(`[SCHEDULE] ${device.name} -> ${targetState.toUpperCase()}`);
-      await setDeviceState(device.id, device.pin, targetState, true);
-      showSchedulerStatus(`⏰ ${active ? 'เปิด' : 'ปิด'} ${device.name} อัตโนมัติ`);
-    }
-  }
-}
-
-function startScheduler() {
-  if (schedulerInterval) clearInterval(schedulerInterval);
-  checkSchedules();
-  schedulerInterval = setInterval(() => {
-    checkSchedules();
-  }, 1000);
-}
-
-function showSchedulerStatus(msg) {
-  const el = document.getElementById("schedulerStatus");
-  if (!el) return;
-  el.textContent = msg;
-  el.style.opacity = "1";
-  setTimeout(() => {
-    el.style.opacity = "0";
-  }, 3000);
-}
-
-// ==================================================
-// FIXED: saveSchedule Auto Enable
-// ==================================================
-window.saveSchedule = async () => {
-  const deviceId = document.getElementById("deviceSelect").value;
-  const onTime = document.getElementById("timeOn").value;
-  const offTime = document.getElementById("timeOff").value;
-  const statusEl = document.getElementById("scheduleStatus");
-
-  if (!deviceId || !onTime || !offTime) {
-    alert("กรอกข้อมูลให้ครบ");
-    return;
-  }
-
-  if (onTime === offTime) {
-    alert("เวลาเปิดและเวลาปิดต้องไม่เหมือนกัน");
-    return;
-  }
-
-  await supabase.from("schedules").delete().eq("device_id", deviceId);
-
-  const { error } = await supabase.from("schedules").insert([{
-    device_id: deviceId,
-    time_on: onTime,
-    time_off: offTime
-  }]);
-
-  if (error) {
-    alert(error.message);
-    return;
-  }
-
-  // เปิดตารางเวลาให้อุปกรณ์นี้อัตโนมัติเมื่อกดบันทึก
-  deviceModes[deviceId] = "auto";
-  localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
-  updateDeviceScheduleUI();
-  renderDevices();
-
-  delete lastScheduleAction[deviceId];
-
-  if (statusEl) {
-    statusEl.innerHTML = "✅ บันทึกเวลาเรียบร้อย";
-    setTimeout(() => { statusEl.innerHTML = ""; }, 3000);
-  }
-
-  await loadSchedules();
-  await checkSchedules();
-};
-
-window.deleteSchedule = async (deviceId) => {
-  if (!confirm("ลบตารางเวลานี้?")) return;
-  await supabase.from("schedules").delete().eq("device_id", deviceId);
-  delete lastScheduleAction[deviceId];
-  await loadSchedules();
-  showSchedulerStatus("🗑 ลบตารางเวลาแล้ว");
-};
-
-function updateGlobalModeUI() {
-  const autoBtn = document.getElementById("globalModeAutoBtn");
-  const manualBtn = document.getElementById("globalModeManualBtn");
-  const modeText = document.getElementById("globalModeText");
-
-  if (globalMode === "auto") {
-    if (autoBtn) autoBtn.style.background = "#2ecc71";
-    if (manualBtn) manualBtn.style.background = "#7f8c8d";
-    if (modeText) modeText.innerHTML = "โหมดภาพรวม: 🤖 Auto";
-  } else {
-    if (autoBtn) autoBtn.style.background = "#7f8c8d";
-    if (manualBtn) manualBtn.style.background = "#e67e22";
-    if (modeText) modeText.innerHTML = "โหมดภาพรวม: 🕹 Manual";
-  }
-
-  devices.forEach(d => {
-    const btn = document.getElementById("btn-" + d.id);
-    if (!btn) return;
-    if (globalMode === "auto") {
-      btn.style.cssText = "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
-    } else {
-      btn.style.cssText = "";
-    }
-  });
-}
-
-window.changeGlobalMode = mode => {
-  globalMode = mode;
-  localStorage.setItem("globalMode", globalMode);
-  updateGlobalModeUI();
-
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "control", mode: mode }));
-  }
-  showSchedulerStatus(`เปลี่ยนโหมดเป็น ${mode === "auto" ? "Auto" : "Manual"}`);
-};
-
-function updateDeviceScheduleUI() {
-  const deviceId = document.getElementById("deviceSelect").value;
-  const autoBtn = document.getElementById("scheduleAutoBtn");
-  const manualBtn = document.getElementById("scheduleManualBtn");
-  const modeText = document.getElementById("deviceScheduleModeText");
-
-  if (!deviceId) {
-    autoBtn.style.background = "#7f8c8d";
-    manualBtn.style.background = "#7f8c8d";
-    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: -";
-    return;
-  }
-
-  const currentMode = deviceModes[deviceId] || "manual";
-  if (currentMode === "auto") {
-    autoBtn.style.background = "#3498db";
-    manualBtn.style.background = "#7f8c8d";
-    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: เปิดใช้งานตารางเวลา";
-  } else {
-    autoBtn.style.background = "#7f8c8d";
-    manualBtn.style.background = "#e67e22";
-    modeText.innerHTML = "สถานะตารางเวลาอุปกรณ์: ปิดใช้งานตารางเวลา";
-  }
-}
-
-window.changeDeviceScheduleMode = async mode => {
-  const deviceId = document.getElementById("deviceSelect").value;
-  if (!deviceId) {
-    alert("กรุณาเลือกอุปกรณ์ก่อน");
-    return;
-  }
-
-  deviceModes[deviceId] = mode;
-  localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
-  updateDeviceScheduleUI();
-  renderDevices();
-
-  if (mode === "auto") {
-    delete lastScheduleAction[deviceId];
-    await checkSchedules();
-    showSchedulerStatus("⏰ เปิดใช้งานตารางเวลาแล้ว");
-  } else {
-    delete lastScheduleAction[deviceId];
-    showSchedulerStatus("🕹 ปิดใช้งานตารางเวลาแล้ว");
-  }
-};
-
-function connectWS() {
-  ws = new WebSocket("wss://smartfarm-web.onrender.com");
-
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ type: "web" }));
-    setTimeout(() => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "control", mode: globalMode }));
-      }
-    }, 500);
+    isSchedule:fromSchedule
   };
 
-  ws.onmessage = event => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === "status" || data.type === "sensor") {
-        if (data.temperature !== undefined) {
-          const temp = parseFloat(data.temperature);
-          document.getElementById("displayTemp").innerHTML = temp > 0 ? temp.toFixed(1) + " °C" : "-- °C";
-        }
-        if (data.food_level !== undefined) {
-          document.getElementById("displayFood").innerHTML = data.food_level + " %";
-        }
-        if (data.water_level !== undefined) {
-          document.getElementById("displayWater").innerHTML = data.water_level + " %";
-        }
+  console.log(
+    "[WS SEND]",
+    command
+  );
 
-        devices.forEach(d => {
-          const btn = document.getElementById("btn-" + d.id);
-          if (!btn) return;
-          let isDeviceOn = false;
-          const pin = Number(d.pin);
+  ws.send(
+    JSON.stringify(command)
+  );
 
-          if (pin === 17) isDeviceOn = data.light === true;
-          else if (pin === 16) isDeviceOn = data.fan1 === true;
-          else if (pin === 5) isDeviceOn = data.fan2 === true;
-          else if (pin === 21) isDeviceOn = data.pump1 === true;
-          else if (pin === 19) isDeviceOn = data.pump2 === true;
-          else if (pin === 18) isDeviceOn = data.motor === true;
-          else return;
+  return true;
+}
 
-          if (isDeviceOn) {
-            btn.className = "device on";
-            btn.innerHTML = "ON";
-          } else {
-            btn.className = "device off";
-            btn.innerHTML = "OFF";
-          }
+// ==================================================
+// MANUAL TOGGLE
+// ==================================================
 
-          if (globalMode === "auto") {
-            btn.style.cssText = "opacity:0.5;cursor:not-allowed;filter:grayscale(50%);";
-          } else {
-            btn.style.cssText = "";
-          }
-        });
+window.toggleDevice =
+async (
+  id,
+  pin
+) =>
+{
+  if (
+    globalMode === "auto"
+  )
+  {
+    alert(
+      "ระบบอยู่ในโหมด Auto ไม่สามารถควบคุมด้วยตนเองได้"
+    );
+
+    return;
+  }
+
+  // ถ้า Schedule กำลังควบคุม
+  if (
+    lastScheduleAction[id] !== undefined
+  )
+  {
+    const schedule =
+      schedules.find(
+        s =>
+          String(
+            s.device_id
+          ) === String(id)
+      );
+
+    if (schedule)
+    {
+      const active =
+        isTimeInSchedule(
+          getCurrentTime(),
+          schedule.time_on,
+          schedule.time_off
+        );
+
+      if (active)
+      {
+        alert(
+          "อุปกรณ์กำลังถูกควบคุมโดยตารางเวลา"
+        );
+
+        return;
+      }
+    }
+  }
+
+  const btn =
+    document.getElementById(
+      "btn-" + id
+    );
+
+  if (!btn)
+    return;
+
+  const targetState =
+    btn.classList.contains("on")
+      ? "off"
+      : "on";
+
+  await setDeviceState(
+    id,
+    pin,
+    targetState,
+    false
+  );
+};
+
+// ==================================================
+// CHECK SCHEDULES
+// ==================================================
+
+async function checkSchedules()
+{
+  if (
+    !devices.length ||
+    !schedules.length
+  )
+  {
+    return;
+  }
+
+  const currentTime =
+    getCurrentTime();
+
+  console.log(
+    "[SCHEDULE CHECK]",
+    currentTime
+  );
+
+  for (
+    const s of schedules
+  )
+  {
+    const device =
+      s.devices;
+
+    if (!device)
+      continue;
+
+    const currentMode =
+      deviceModes[device.id] ||
+      "manual";
+
+    // ต้องเปิด Schedule
+    if (
+      currentMode !== "auto"
+    )
+    {
+      continue;
+    }
+
+    const timeOn =
+      s.time_on
+        ? s.time_on.substring(0,5)
+        : "";
+
+    const timeOff =
+      s.time_off
+        ? s.time_off.substring(0,5)
+        : "";
+
+    if (
+      !timeOn ||
+      !timeOff
+    )
+    {
+      continue;
+    }
+
+    const active =
+      isTimeInSchedule(
+        currentTime,
+        timeOn,
+        timeOff
+      );
+
+    const targetState =
+      active
+        ? "on"
+        : "off";
+
+    const lastState =
+      lastScheduleAction[
+        device.id
+      ];
+
+    // ============================================
+    // ยังไม่มีสถานะ
+    // ============================================
+
+    if (
+      lastState === undefined
+    )
+    {
+      console.log(
+        `[SCHEDULE] ${device.name} INITIAL -> ${targetState.toUpperCase()}`
+      );
+
+      const success =
+        await setDeviceState(
+          device.id,
+          device.pin,
+          targetState,
+          true
+        );
+
+      // บันทึกสถานะเฉพาะเมื่อส่งสำเร็จ
+      if (success)
+      {
+        lastScheduleAction[
+          device.id
+        ] =
+          targetState;
+
+        showSchedulerStatus(
+          `⏰ ${active ? "เปิด" : "ปิด"} ${device.name} อัตโนมัติ`
+        );
       }
 
-      if (data.type === "mode_status") {
-        if (data.mode === "auto" || data.mode === "manual") {
-          globalMode = data.mode;
-          localStorage.setItem("globalMode", globalMode);
+      continue;
+    }
+
+    // ============================================
+    // สถานะเปลี่ยน
+    // ============================================
+
+    if (
+      lastState !== targetState
+    )
+    {
+      console.log(
+        `[SCHEDULE] ${device.name} ${lastState.toUpperCase()} -> ${targetState.toUpperCase()}`
+      );
+
+      const success =
+        await setDeviceState(
+          device.id,
+          device.pin,
+          targetState,
+          true
+        );
+
+      if (success)
+      {
+        lastScheduleAction[
+          device.id
+        ] =
+          targetState;
+
+        showSchedulerStatus(
+          `⏰ ${active ? "เปิด" : "ปิด"} ${device.name} อัตโนมัติ`
+        );
+      }
+    }
+  }
+}
+
+// ==================================================
+// START SCHEDULER
+// ==================================================
+
+function startScheduler()
+{
+  if (
+    schedulerInterval
+  )
+  {
+    clearInterval(
+      schedulerInterval
+    );
+  }
+
+  checkSchedules();
+
+  schedulerInterval =
+    setInterval(
+      () =>
+      {
+        checkSchedules();
+      },
+      1000
+    );
+}
+
+// ==================================================
+// STATUS POPUP
+// ==================================================
+
+function showSchedulerStatus(
+  msg
+)
+{
+  const el =
+    document.getElementById(
+      "schedulerStatus"
+    );
+
+  if (!el)
+    return;
+
+  el.textContent =
+    msg;
+
+  el.style.opacity =
+    "1";
+
+  setTimeout(
+    () =>
+    {
+      el.style.opacity =
+        "0";
+    },
+    3000
+  );
+}
+
+// ==================================================
+// SAVE SCHEDULE
+// ==================================================
+
+window.saveSchedule =
+async () =>
+{
+  const deviceId =
+    document.getElementById(
+      "deviceSelect"
+    ).value;
+
+  const onTime =
+    document.getElementById(
+      "timeOn"
+    ).value;
+
+  const offTime =
+    document.getElementById(
+      "timeOff"
+    ).value;
+
+  const statusEl =
+    document.getElementById(
+      "scheduleStatus"
+    );
+
+  if (
+    !deviceId ||
+    !onTime ||
+    !offTime
+  )
+  {
+    alert(
+      "กรอกข้อมูลให้ครบ"
+    );
+
+    return;
+  }
+
+  if (
+    onTime === offTime
+  )
+  {
+    alert(
+      "เวลาเปิดและเวลาปิดต้องไม่เหมือนกัน"
+    );
+
+    return;
+  }
+
+  // ============================================
+  // ลบ Schedule เดิม
+  // ============================================
+
+  const {
+    error: deleteError
+  } =
+    await supabase
+      .from("schedules")
+      .delete()
+      .eq(
+        "device_id",
+        deviceId
+      );
+
+  if (deleteError)
+  {
+    alert(
+      deleteError.message
+    );
+
+    return;
+  }
+
+  // ============================================
+  // เพิ่ม Schedule ใหม่
+  // ============================================
+
+  const {
+    error
+  } =
+    await supabase
+      .from("schedules")
+      .insert([
+        {
+          device_id:deviceId,
+          time_on:onTime,
+          time_off:offTime
+        }
+      ]);
+
+  if (error)
+  {
+    alert(
+      error.message
+    );
+
+    return;
+  }
+
+  // ============================================
+  // เปิด Schedule ให้อุปกรณ์
+  // ============================================
+
+  deviceModes[deviceId] =
+    "auto";
+
+  localStorage.setItem(
+    "deviceModes",
+    JSON.stringify(
+      deviceModes
+    )
+  );
+
+  // สำคัญ
+  // บังคับให้ตรวจ Schedule ใหม่
+  delete lastScheduleAction[
+    deviceId
+  ];
+
+  await loadSchedules();
+
+  renderDevices();
+
+  updateDeviceScheduleUI();
+
+  await checkSchedules();
+
+  if (statusEl)
+  {
+    statusEl.innerHTML =
+      "✅ บันทึกเวลาและเปิดใช้งานตารางเวลาแล้ว";
+
+    setTimeout(
+      () =>
+      {
+        statusEl.innerHTML =
+          "";
+      },
+      3000
+    );
+  }
+};
+
+// ==================================================
+// DELETE SCHEDULE
+// ==================================================
+
+window.deleteSchedule =
+async (
+  deviceId
+) =>
+{
+  if (
+    !confirm(
+      "ลบตารางเวลานี้?"
+    )
+  )
+  {
+    return;
+  }
+
+  const {
+    error
+  } =
+    await supabase
+      .from("schedules")
+      .delete()
+      .eq(
+        "device_id",
+        deviceId
+      );
+
+  if (error)
+  {
+    alert(
+      error.message
+    );
+
+    return;
+  }
+
+  // ปิด Schedule ของอุปกรณ์นี้
+  deviceModes[deviceId] =
+    "manual";
+
+  localStorage.setItem(
+    "deviceModes",
+    JSON.stringify(
+      deviceModes
+    )
+  );
+
+  delete lastScheduleAction[
+    deviceId
+  ];
+
+  await loadSchedules();
+
+  renderDevices();
+
+  updateDeviceScheduleUI();
+
+  showSchedulerStatus(
+    "🗑 ลบตารางเวลาแล้ว"
+  );
+};
+
+// ==================================================
+// GLOBAL MODE UI
+// ==================================================
+
+function updateGlobalModeUI()
+{
+  const autoBtn =
+    document.getElementById(
+      "globalModeAutoBtn"
+    );
+
+  const manualBtn =
+    document.getElementById(
+      "globalModeManualBtn"
+    );
+
+  const modeText =
+    document.getElementById(
+      "globalModeText"
+    );
+
+  if (
+    globalMode === "auto"
+  )
+  {
+    if (autoBtn)
+      autoBtn.style.background =
+        "#2ecc71";
+
+    if (manualBtn)
+      manualBtn.style.background =
+        "#7f8c8d";
+
+    if (modeText)
+      modeText.innerHTML =
+        "โหมดภาพรวม: 🤖 Auto";
+  }
+  else
+  {
+    if (autoBtn)
+      autoBtn.style.background =
+        "#7f8c8d";
+
+    if (manualBtn)
+      manualBtn.style.background =
+        "#e67e22";
+
+    if (modeText)
+      modeText.innerHTML =
+        "โหมดภาพรวม: 🕹 Manual";
+  }
+
+  devices.forEach(
+    d =>
+    {
+      const btn =
+        document.getElementById(
+          "btn-" + d.id
+        );
+
+      if (!btn)
+        return;
+
+      if (
+        globalMode === "auto"
+      )
+      {
+        btn.style.cssText =
+          "opacity:.5;cursor:not-allowed;filter:grayscale(50%);";
+      }
+      else
+      {
+        btn.style.cssText =
+          "";
+      }
+    }
+  );
+}
+
+// ==================================================
+// CHANGE GLOBAL MODE
+// ==================================================
+
+window.changeGlobalMode =
+mode =>
+{
+  globalMode =
+    mode;
+
+  localStorage.setItem(
+    "globalMode",
+    globalMode
+  );
+
+  updateGlobalModeUI();
+
+  if (
+    ws &&
+    ws.readyState === WebSocket.OPEN
+  )
+  {
+    ws.send(
+      JSON.stringify({
+        type:"control",
+        mode:mode
+      })
+    );
+  }
+
+  // Schedule ต้องตรวจใหม่
+  setTimeout(
+    () =>
+    {
+      checkSchedules();
+    },
+    100
+  );
+
+  showSchedulerStatus(
+    `เปลี่ยนโหมดเป็น ${
+      mode === "auto"
+        ? "Auto"
+        : "Manual"
+    }`
+  );
+};
+
+// ==================================================
+// DEVICE SCHEDULE UI
+// ==================================================
+
+function updateDeviceScheduleUI()
+{
+  const deviceId =
+    document.getElementById(
+      "deviceSelect"
+    ).value;
+
+  const autoBtn =
+    document.getElementById(
+      "scheduleAutoBtn"
+    );
+
+  const manualBtn =
+    document.getElementById(
+      "scheduleManualBtn"
+    );
+
+  const modeText =
+    document.getElementById(
+      "deviceScheduleModeText"
+    );
+
+  if (!deviceId)
+  {
+    autoBtn.style.background =
+      "#7f8c8d";
+
+    manualBtn.style.background =
+      "#7f8c8d";
+
+    modeText.innerHTML =
+      "สถานะตารางเวลาอุปกรณ์: -";
+
+    return;
+  }
+
+  const currentMode =
+    deviceModes[deviceId] ||
+    "manual";
+
+  if (
+    currentMode === "auto"
+  )
+  {
+    autoBtn.style.background =
+      "#3498db";
+
+    manualBtn.style.background =
+      "#7f8c8d";
+
+    modeText.innerHTML =
+      "สถานะตารางเวลาอุปกรณ์: เปิดใช้งานตารางเวลา";
+  }
+  else
+  {
+    autoBtn.style.background =
+      "#7f8c8d";
+
+    manualBtn.style.background =
+      "#e67e22";
+
+    modeText.innerHTML =
+      "สถานะตารางเวลาอุปกรณ์: ปิดใช้งานตารางเวลา";
+  }
+}
+
+// ==================================================
+// CHANGE DEVICE SCHEDULE MODE
+// ==================================================
+
+window.changeDeviceScheduleMode =
+async mode =>
+{
+  const deviceId =
+    document.getElementById(
+      "deviceSelect"
+    ).value;
+
+  if (!deviceId)
+  {
+    alert(
+      "กรุณาเลือกอุปกรณ์ก่อน"
+    );
+
+    return;
+  }
+
+  deviceModes[deviceId] =
+    mode;
+
+  localStorage.setItem(
+    "deviceModes",
+    JSON.stringify(
+      deviceModes
+    )
+  );
+
+  // สำคัญ
+  delete lastScheduleAction[
+    deviceId
+  ];
+
+  updateDeviceScheduleUI();
+
+  renderDevices();
+
+  if (
+    mode === "auto"
+  )
+  {
+    await checkSchedules();
+
+    showSchedulerStatus(
+      "⏰ เปิดใช้งานตารางเวลาแล้ว"
+    );
+  }
+  else
+  {
+    showSchedulerStatus(
+      "🕹 ปิดใช้งานตารางเวลาแล้ว"
+    );
+  }
+};
+
+// ==================================================
+// WEBSOCKET CONNECT
+// ==================================================
+
+function connectWS()
+{
+  console.log(
+    "[WS] Connecting..."
+  );
+
+  ws =
+    new WebSocket(
+      "wss://smartfarm-web.onrender.com"
+    );
+
+  // ============================================
+  // OPEN
+  // ============================================
+
+  ws.onopen =
+  () =>
+  {
+    console.log(
+      "[WS] Connected"
+    );
+
+    ws.send(
+      JSON.stringify({
+        type:"web"
+      })
+    );
+
+    // ==========================================
+    // สำคัญมาก
+    // ถ้า ESP32 reconnect/restart
+    // ให้เว็บส่ง Schedule ปัจจุบันใหม่
+    // ==========================================
+
+    lastScheduleAction = {};
+
+    setTimeout(
+      async () =>
+      {
+        if (
+          ws &&
+          ws.readyState === WebSocket.OPEN
+        )
+        {
+          ws.send(
+            JSON.stringify({
+              type:"control",
+              mode:globalMode
+            })
+          );
+
+          await checkSchedules();
+        }
+      },
+      500
+    );
+  };
+
+  // ============================================
+  // MESSAGE
+  // ============================================
+
+  ws.onmessage =
+  event =>
+  {
+    try
+    {
+      const data =
+        JSON.parse(
+          event.data
+        );
+
+      // ========================================
+      // STATUS
+      // ========================================
+
+      if (
+        data.type === "status" ||
+        data.type === "sensor"
+      )
+      {
+        if (
+          data.temperature !== undefined
+        )
+        {
+          const temp =
+            parseFloat(
+              data.temperature
+            );
+
+          const el =
+            document.getElementById(
+              "displayTemp"
+            );
+
+          if (el)
+          {
+            el.innerHTML =
+              temp > 0
+                ? temp.toFixed(1) + " °C"
+                : "-- °C";
+          }
+        }
+
+        if (
+          data.food_level !== undefined
+        )
+        {
+          const el =
+            document.getElementById(
+              "displayFood"
+            );
+
+          if (el)
+          {
+            el.innerHTML =
+              data.food_level +
+              " %";
+          }
+        }
+
+        if (
+          data.water_level !== undefined
+        )
+        {
+          const el =
+            document.getElementById(
+              "displayWater"
+            );
+
+          if (el)
+          {
+            el.innerHTML =
+              data.water_level +
+              " %";
+          }
+        }
+
+        // ======================================
+        // UPDATE RELAY UI
+        // ======================================
+
+        devices.forEach(
+          d =>
+          {
+            const btn =
+              document.getElementById(
+                "btn-" + d.id
+              );
+
+            if (!btn)
+              return;
+
+            let isDeviceOn =
+              false;
+
+            const pin =
+              Number(d.pin);
+
+            if (pin === 17)
+              isDeviceOn =
+                data.light === true;
+
+            else if (pin === 16)
+              isDeviceOn =
+                data.fan1 === true;
+
+            else if (pin === 5)
+              isDeviceOn =
+                data.fan2 === true;
+
+            else if (pin === 21)
+              isDeviceOn =
+                data.pump1 === true;
+
+            else if (pin === 19)
+              isDeviceOn =
+                data.pump2 === true;
+
+            else if (pin === 18)
+              isDeviceOn =
+                data.motor === true;
+
+            else
+              return;
+
+            if (isDeviceOn)
+            {
+              btn.className =
+                "device on";
+
+              btn.innerHTML =
+                "ON";
+            }
+            else
+            {
+              btn.className =
+                "device off";
+
+              btn.innerHTML =
+                "OFF";
+            }
+
+            if (
+              globalMode === "auto"
+            )
+            {
+              btn.style.cssText =
+                "opacity:.5;cursor:not-allowed;filter:grayscale(50%);";
+            }
+            else
+            {
+              btn.style.cssText =
+                "";
+            }
+          }
+        );
+      }
+
+      // ========================================
+      // MODE STATUS
+      // ========================================
+
+      if (
+        data.type === "mode_status"
+      )
+      {
+        if (
+          data.mode === "auto" ||
+          data.mode === "manual"
+        )
+        {
+          globalMode =
+            data.mode;
+
+          localStorage.setItem(
+            "globalMode",
+            globalMode
+          );
+
           updateGlobalModeUI();
         }
       }
-    } catch (e) {
-      console.error("[WS] JSON Error", e);
+
+    }
+    catch(e)
+    {
+      console.error(
+        "[WS] JSON Error",
+        e
+      );
     }
   };
 
-  ws.onclose = () => {
-    setTimeout(connectWS, 5000);
+  // ============================================
+  // CLOSE
+  // ============================================
+
+  ws.onclose =
+  () =>
+  {
+    console.warn(
+      "[WS] Connection closed"
+    );
+
+    // สำคัญ
+    // เมื่อต่อใหม่ให้ส่ง Schedule ใหม่
+    lastScheduleAction = {};
+
+    setTimeout(
+      () =>
+      {
+        connectWS();
+      },
+      5000
+    );
+  };
+
+  // ============================================
+  // ERROR
+  // ============================================
+
+  ws.onerror =
+  error =>
+  {
+    console.error(
+      "[WS] Error",
+      error
+    );
   };
 }
 
-window.addDevice = async () => {
-  const name = document.getElementById("deviceName").value.trim();
-  const on = document.getElementById("onKey").value.trim();
-  const off = document.getElementById("offKey").value.trim();
-  const pin = document.getElementById("pinInput").value.trim();
+// ==================================================
+// ADD DEVICE
+// ==================================================
 
-  if (!name || !on || !off || !pin) {
-    alert("กรอกข้อมูลให้ครบ");
+window.addDevice =
+async () =>
+{
+  const name =
+    document.getElementById(
+      "deviceName"
+    ).value.trim();
+
+  const on =
+    document.getElementById(
+      "onKey"
+    ).value.trim();
+
+  const off =
+    document.getElementById(
+      "offKey"
+    ).value.trim();
+
+  const pin =
+    document.getElementById(
+      "pinInput"
+    ).value.trim();
+
+  if (
+    !name ||
+    !on ||
+    !off ||
+    !pin
+  )
+  {
+    alert(
+      "กรอกข้อมูลให้ครบ"
+    );
+
     return;
   }
 
-  const { error } = await supabase.from("devices").insert([{
-    user_id: currentUser.id,
-    name,
-    on_key: on,
-    off_key: off,
-    pin
-  }]);
+  const {
+    error
+  } =
+    await supabase
+      .from("devices")
+      .insert([
+        {
+          user_id:currentUser.id,
+          name:name,
+          on_key:on,
+          off_key:off,
+          pin:pin
+        }
+      ]);
 
-  if (error) {
-    alert(error.message);
+  if (error)
+  {
+    alert(
+      error.message
+    );
+
     return;
   }
 
-  document.getElementById("deviceName").value = "";
-  document.getElementById("onKey").value = "";
-  document.getElementById("offKey").value = "";
-  document.getElementById("pinInput").value = "";
+  document.getElementById(
+    "deviceName"
+  ).value = "";
+
+  document.getElementById(
+    "onKey"
+  ).value = "";
+
+  document.getElementById(
+    "offKey"
+  ).value = "";
+
+  document.getElementById(
+    "pinInput"
+  ).value = "";
 
   await loadDevices();
+
   await loadSchedules();
 };
 
-window.deleteDevice = async id => {
-  if (!confirm("ลบอุปกรณ์นี้?")) return;
-  await supabase.from("schedules").delete().eq("device_id", id);
-  await supabase.from("devices").delete().eq("id", id);
+// ==================================================
+// DELETE DEVICE
+// ==================================================
+
+window.deleteDevice =
+async id =>
+{
+  if (
+    !confirm(
+      "ลบอุปกรณ์นี้?"
+    )
+  )
+  {
+    return;
+  }
+
+  await supabase
+    .from("schedules")
+    .delete()
+    .eq(
+      "device_id",
+      id
+    );
+
+  await supabase
+    .from("devices")
+    .delete()
+    .eq(
+      "id",
+      id
+    );
 
   delete deviceModes[id];
-  localStorage.setItem("deviceModes", JSON.stringify(deviceModes));
+
   delete lastScheduleAction[id];
 
+  localStorage.setItem(
+    "deviceModes",
+    JSON.stringify(
+      deviceModes
+    )
+  );
+
   await loadDevices();
+
   await loadSchedules();
 };
 
-window.startVoice = async () => {
-  const voiceBtn = document.getElementById("voiceButton");
-  const voiceText = document.getElementById("voiceText");
+// ==================================================
+// VOICE
+// ==================================================
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    voiceText.innerHTML = "❌ อุปกรณ์ไม่รองรับการสั่งงานด้วยเสียง";
+window.startVoice =
+async () =>
+{
+  const voiceBtn =
+    document.getElementById(
+      "voiceButton"
+    );
+
+  const voiceText =
+    document.getElementById(
+      "voiceText"
+    );
+
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition)
+  {
+    voiceText.innerHTML =
+      "❌ อุปกรณ์ไม่รองรับการสั่งงานด้วยเสียง";
+
     return;
   }
 
-  try {
-    await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (err) {
-    voiceText.innerHTML = "❌ กรุณาอนุญาตสิทธิ์ไมโครโฟน";
+  try
+  {
+    await navigator.mediaDevices
+      .getUserMedia({
+        audio:true
+      });
+  }
+  catch(err)
+  {
+    voiceText.innerHTML =
+      "❌ กรุณาอนุญาตสิทธิ์ไมโครโฟน";
+
     return;
   }
 
-  if (recognition) {
-    try { recognition.abort(); } catch (e) {}
+  if (recognition)
+  {
+    try
+    {
+      recognition.abort();
+    }
+    catch(e){}
   }
 
-  recognition = new SpeechRecognition();
-  recognition.lang = "th-TH";
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-  recognition.continuous = false;
+  recognition =
+    new SpeechRecognition();
 
-  recognition.onstart = () => {
-    voiceBtn.classList.add("listening");
-    voiceBtn.innerHTML = "🔊 กำลังฟังคำสั่งเสียง...";
-    voiceText.innerHTML = "พูดคำสั่งเปิด/ปิดอุปกรณ์";
+  recognition.lang =
+    "th-TH";
+
+  recognition.interimResults =
+    false;
+
+  recognition.maxAlternatives =
+    1;
+
+  recognition.continuous =
+    false;
+
+  recognition.onstart =
+  () =>
+  {
+    voiceBtn.classList.add(
+      "listening"
+    );
+
+    voiceBtn.innerHTML =
+      "🔊 กำลังฟังคำสั่งเสียง...";
+
+    voiceText.innerHTML =
+      "พูดคำสั่งเปิด/ปิดอุปกรณ์";
   };
 
-  recognition.onresult = async event => {
-    const text = event.results[0][0].transcript.trim().toLowerCase();
-    voiceText.innerHTML = `ได้ยินเสียง: "${text}"`;
+  recognition.onresult =
+  async event =>
+  {
+    const text =
+      event.results[0][0]
+        .transcript
+        .trim()
+        .toLowerCase();
 
-    if (globalMode === "auto") {
-      voiceText.innerHTML = "⚠️ ไม่สามารถสั่งงานด้วยเสียงในโหมด Auto";
+    voiceText.innerHTML =
+      `ได้ยินเสียง: "${text}"`;
+
+    if (
+      globalMode === "auto"
+    )
+    {
+      voiceText.innerHTML =
+        "⚠️ ไม่สามารถสั่งงานด้วยเสียงในโหมด Auto";
+
       return;
     }
 
-    let matched = false;
-    for (const d of devices) {
-      const onKey = d.on_key.trim().toLowerCase();
-      const offKey = d.off_key.trim().toLowerCase();
+    let matched =
+      false;
 
-      if (text === onKey) {
-        await setDeviceState(d.id, d.pin, "on", false);
-        matched = true;
+    for (
+      const d of devices
+    )
+    {
+      const onKey =
+        d.on_key
+          .trim()
+          .toLowerCase();
+
+      const offKey =
+        d.off_key
+          .trim()
+          .toLowerCase();
+
+      if (
+        text === onKey
+      )
+      {
+        await setDeviceState(
+          d.id,
+          d.pin,
+          "on",
+          false
+        );
+
+        matched =
+          true;
+
         break;
       }
-      if (text === offKey) {
-        await setDeviceState(d.id, d.pin, "off", false);
-        matched = true;
+
+      if (
+        text === offKey
+      )
+      {
+        await setDeviceState(
+          d.id,
+          d.pin,
+          "off",
+          false
+        );
+
+        matched =
+          true;
+
         break;
       }
     }
 
-    if (!matched) {
-      voiceText.innerHTML = `ได้ยิน: "${text}" ไม่พบคำสั่ง`;
+    if (!matched)
+    {
+      voiceText.innerHTML =
+        `ได้ยิน: "${text}" ไม่พบคำสั่ง`;
     }
   };
 
-  recognition.onerror = () => {
-    voiceText.innerHTML = "❌ เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
+  recognition.onerror =
+  () =>
+  {
+    voiceText.innerHTML =
+      "❌ เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
   };
 
-  recognition.onend = () => {
-    voiceBtn.classList.remove("listening");
-    voiceBtn.innerHTML = "🎤 เริ่มฟังคำสั่ง";
+  recognition.onend =
+  () =>
+  {
+    voiceBtn.classList.remove(
+      "listening"
+    );
+
+    voiceBtn.innerHTML =
+      "🎤 เริ่มฟังคำสั่ง";
   };
 
-  try { recognition.start(); } catch (e) {}
+  try
+  {
+    recognition.start();
+  }
+  catch(e){}
 };
 
-async function logout() {
-  if (schedulerInterval) clearInterval(schedulerInterval);
+// ==================================================
+// LOGOUT
+// ==================================================
+
+async function logout()
+{
+  if (
+    schedulerInterval
+  )
+  {
+    clearInterval(
+      schedulerInterval
+    );
+  }
+
   await supabase.auth.signOut();
-  location.href = "index.html";
+
+  location.href =
+    "index.html";
 }
 
-function goPage2() {
-  location.href = "history.html";
+// ==================================================
+// PAGE 2
+// ==================================================
+
+function goPage2()
+{
+  location.href =
+    "history.html";
 }
 
-window.logout = logout;
-window.goPage2 = goPage2;
-window.updateDeviceScheduleUI = updateDeviceScheduleUI;
+window.logout =
+  logout;
+
+window.goPage2 =
+  goPage2;
+
+window.updateDeviceScheduleUI =
+  updateDeviceScheduleUI;
+
+// ==================================================
+// START
+// ==================================================
 
 checkAuthAndLoad();
+
 </script>
 
 </body>
