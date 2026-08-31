@@ -1263,6 +1263,47 @@ async function setDeviceState(
   fromSchedule = false
 )
 {
+  // ==============================================
+  // CHECK WEBSOCKET
+  // ==============================================
+
+  if (
+    !ws ||
+    ws.readyState !== WebSocket.OPEN
+  )
+  {
+    console.warn(
+      "[WS] ยังไม่ได้เชื่อมต่อ"
+    );
+
+    return false;
+  }
+
+  // ==============================================
+  // SEND COMMAND
+  // ==============================================
+
+  const command =
+  {
+    type: "control",
+    device: String(pin),
+    status: targetState,
+    isSchedule: fromSchedule
+  };
+
+  console.log(
+    "[WS SEND]",
+    command
+  );
+
+  ws.send(
+    JSON.stringify(command)
+  );
+
+  // ==============================================
+  // UPDATE BUTTON
+  // ==============================================
+
   const btn =
     document.getElementById(
       "btn-" + id
@@ -1270,9 +1311,7 @@ async function setDeviceState(
 
   if (btn)
   {
-    if (
-      targetState === "on"
-    )
+    if (targetState === "on")
     {
       btn.className =
         "device on";
@@ -1291,44 +1330,46 @@ async function setDeviceState(
   }
 
   // ==============================================
-  // ต้องมี WebSocket
+  // SAVE HISTORY
   // ==============================================
 
-  if (
-    !ws ||
-    ws.readyState !== WebSocket.OPEN
-  )
+  const {
+    error
+  } =
+    await supabase
+      .from("device_status_logs")
+      .insert([
+        {
+          device_id: id,
+          status: targetState === "on"
+        }
+      ]);
+
+  if (error)
   {
-    console.warn(
-      "[WS] ยังไม่ได้เชื่อมต่อ"
+    console.error(
+      "[HISTORY] บันทึกประวัติไม่สำเร็จ:",
+      error
     );
-
-    return false;
   }
-
-  const command =
+  else
   {
-    type:"control",
-
-    device:String(pin),
-
-    status:targetState,
-
-    isSchedule:fromSchedule
-  };
-
-  console.log(
-    "[WS SEND]",
-    command
-  );
-
-  ws.send(
-    JSON.stringify(command)
-  );
+    console.log(
+      "[HISTORY] บันทึกสำเร็จ",
+      {
+        device_id: id,
+        pin: pin,
+        status: targetState,
+        source:
+          fromSchedule
+            ? "SCHEDULE"
+            : "MANUAL"
+      }
+    );
+  }
 
   return true;
 }
-
 // ==================================================
 // MANUAL TOGGLE
 // ==================================================
