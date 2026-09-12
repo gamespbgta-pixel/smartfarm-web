@@ -1296,12 +1296,14 @@ async function setDeviceState(
     command
   );
 
+  // ส่งคำสั่งให้ ESP32 ทันที
+  // ไม่รอ Supabase ก่อน
   ws.send(
     JSON.stringify(command)
   );
 
   // ==============================================
-  // UPDATE BUTTON
+  // UPDATE BUTTON IMMEDIATELY
   // ==============================================
 
   const btn =
@@ -1330,46 +1332,57 @@ async function setDeviceState(
   }
 
   // ==============================================
-  // SAVE HISTORY
+  // SAVE HISTORY - BACKGROUND
   // ==============================================
+  // ไม่ await เพื่อไม่ให้การกด Relay ต้องรอ Supabase
+  // History ยังคงถูกบันทึกเหมือนเดิม
 
-  const {
-    error
-  } =
-    await supabase
-      .from("device_status_logs")
-      .insert([
-        {
-          device_id: id,
-          status: targetState === "on"
-        }
-      ]);
-
-  if (error)
-  {
-    console.error(
-      "[HISTORY] บันทึกประวัติไม่สำเร็จ:",
-      error
-    );
-  }
-  else
-  {
-    console.log(
-      "[HISTORY] บันทึกสำเร็จ",
+  supabase
+    .from("device_status_logs")
+    .insert([
       {
         device_id: id,
-        pin: pin,
-        status: targetState,
-        source:
-          fromSchedule
-            ? "SCHEDULE"
-            : "MANUAL"
+        status: targetState === "on"
       }
-    );
-  }
+    ])
+    .then(({ error }) =>
+    {
+      if (error)
+      {
+        console.error(
+          "[HISTORY] บันทึกประวัติไม่สำเร็จ:",
+          error
+        );
+      }
+      else
+      {
+        console.log(
+          "[HISTORY] บันทึกสำเร็จ",
+          {
+            device_id: id,
+            pin: pin,
+            status: targetState,
+            source:
+              fromSchedule
+                ? "SCHEDULE"
+                : "MANUAL"
+          }
+        );
+      }
+    })
+    .catch(error =>
+    {
+      console.error(
+        "[HISTORY] เกิดข้อผิดพลาด:",
+        error
+      );
+    });
 
+  // ไม่รอ History แล้ว
+  // จึงตอบสนองการกด Relay ได้ทันที
   return true;
 }
+
 // ==================================================
 // MANUAL TOGGLE
 // ==================================================
