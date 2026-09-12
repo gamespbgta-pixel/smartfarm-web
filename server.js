@@ -1,4 +1,3 @@
-```js
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -9,10 +8,9 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // ==================================================
-// Supabase
+// SUPABASE
 // ==================================================
 
-// ตั้งค่าใน Render > Environment Variables
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
@@ -27,258 +25,334 @@ const supabase = createClient(
 );
 
 // ==================================================
-// Express
+// EXPRESS
 // ==================================================
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+    express.static(
+        path.join(__dirname, 'public')
+    )
+);
 
 // ==================================================
-// HTTP Server
+// HTTP SERVER
 // ==================================================
 
 const server = http.createServer(app);
 
 // ==================================================
-// WebSocket Server
+// WEBSOCKET SERVER
 // ==================================================
 
 const wss = new WebSocket.Server({
     server
 });
 
-
 // ==================================================
-// WebSocket Connection
+// WEBSOCKET CONNECTION
 // ==================================================
 
 wss.on('connection', (ws) => {
 
     console.log('[WebSocket] Client connected');
 
-    // ------------------------------------------------
-    // Message
-    // ------------------------------------------------
+    // ==================================================
+    // MESSAGE
+    // ==================================================
 
-    ws.on('message', async (message) => {
+    ws.on('message', (message) => {
 
-        const msgString = message.toString('utf8');
+        const msgString =
+            message.toString('utf8');
 
         let data;
 
-        // ------------------------------------------------
-        // JSON
-        // ------------------------------------------------
+        // ==================================================
+        // JSON PARSE
+        // ==================================================
 
         try {
+
             data = JSON.parse(msgString);
+
         } catch (error) {
 
-            console.log('[WebSocket] Invalid JSON');
+            console.error(
+                '[WebSocket] Invalid JSON'
+            );
 
             return;
         }
 
-
-        console.log('[WebSocket] Receive:', data);
-
+        console.log(
+            '[WebSocket] Receive:',
+            data
+        );
 
         // ==================================================
-        // 1. BROADCAST ทันที
+        // BROADCAST ทันที
         // ==================================================
         //
-        // สำคัญ:
-        // ส่งข้อมูลให้ Web / ESP32 ก่อน
+        // สำคัญมากสำหรับ Relay
+        //
         // ไม่รอ Supabase
+        // ไม่ใช้ await
         //
-        // ช่วยลดความหน่วงในการควบคุม Relay
+        // ส่งคำสั่งให้ Client ทันที
         // ==================================================
 
         wss.clients.forEach((client) => {
 
-            if (client.readyState === WebSocket.OPEN) {
+            if (
+                client.readyState ===
+                WebSocket.OPEN
+            ) {
 
-                client.send(msgString);
+                try {
+
+                    client.send(msgString);
+
+                } catch (error) {
+
+                    console.error(
+                        '[WebSocket] Send Error:',
+                        error.message
+                    );
+
+                }
+
             }
 
         });
 
+        // ==================================================
+        // CONTROL
+        // ==================================================
+        //
+        // Relay:
+        // ส่งออกไปทันทีด้านบนแล้ว
+        //
+        // ไม่ต้องทำ Supabase ตรงนี้
+        // เพราะ History ถูกบันทึกจาก control.html
+        //
+        // ==================================================
+
+        if (data.type === 'control') {
+
+            console.log(
+                '[CONTROL] Device:',
+                data.device,
+                '| Status:',
+                data.status
+            );
+
+            return;
+        }
 
         // ==================================================
-        // 2. SENSOR DATA
+        // SENSOR
         // ==================================================
 
         if (data.type === 'sensor') {
 
-            const temperature = data.temperature;
-            const foodLevel = data.food_level;
-            const waterLevel = data.water_level;
+            const temperature =
+                data.temperature;
 
+            const foodLevel =
+                data.food_level;
+
+            const waterLevel =
+                data.water_level;
 
             console.log(
                 `[SENSOR] Temp=${temperature}°C | Food=${foodLevel}% | Water=${waterLevel}%`
             );
 
+            // ==================================================
+            // SAVE SENSOR
+            // ==================================================
+            //
+            // ทำงานเบื้องหลัง
+            // ไม่ขวาง WebSocket
+            //
+            // ==================================================
 
-            // ------------------------------------------------
-            // บันทึกลง Supabase
-            // ------------------------------------------------
+            supabase
+                .from('sensor_logs')
+                .insert([
+                    {
+                        temperature:
+                            temperature,
 
-            try {
+                        food_level:
+                            foodLevel,
 
-                const { error } = await supabase
-                    .from('sensor_logs')
-                    .insert([
-                        {
-                            temperature: temperature,
-                            food_level: foodLevel,
-                            water_level: waterLevel,
-                            created_at: new Date().toISOString()
-                        }
-                    ]);
+                        water_level:
+                            waterLevel,
 
+                        created_at:
+                            new Date().toISOString()
+                    }
+                ])
+                .then(({ error }) => {
 
-                if (error) {
+                    if (error) {
+
+                        console.error(
+                            '[Supabase] Sensor Insert Error:',
+                            error.message
+                        );
+
+                    } else {
+
+                        console.log(
+                            '[Supabase] Sensor saved'
+                        );
+
+                    }
+
+                })
+                .catch((error) => {
 
                     console.error(
-                        '[Supabase] Insert Error:',
+                        '[Supabase] Sensor Error:',
                         error.message
                     );
 
-                } else {
+                });
 
-                    console.log('[Supabase] Sensor saved');
-
-                }
-
-            } catch (error) {
-
-                console.error(
-                    '[Supabase] Error:',
-                    error.message
-                );
-
-            }
-
+            return;
         }
 
-
         // ==================================================
-        // 3. TEMPERATURE แบบเก่า
-        // ==================================================
-        //
-        // รองรับกรณี Client เดิมส่ง:
-        //
-        // {
-        //   "type": "temperature",
-        //   "value": 30.5
-        // }
-        //
+        // TEMPERATURE แบบเก่า
         // ==================================================
 
-        else if (data.type === 'temperature') {
+        if (data.type === 'temperature') {
 
-            try {
+            console.log(
+                '[TEMPERATURE]',
+                data.value
+            );
 
-                const { error } = await supabase
-                    .from('temperature_logs')
-                    .insert([
-                        {
-                            value: data.value,
-                            created_at: new Date().toISOString()
-                        }
-                    ]);
+            // ==================================================
+            // SAVE TEMPERATURE
+            // ==================================================
+            //
+            // ทำงานเบื้องหลัง
+            // ==================================================
 
+            supabase
+                .from('temperature_logs')
+                .insert([
+                    {
+                        value:
+                            data.value,
 
-                if (error) {
+                        created_at:
+                            new Date().toISOString()
+                    }
+                ])
+                .then(({ error }) => {
+
+                    if (error) {
+
+                        console.error(
+                            '[Supabase] Temperature Insert Error:',
+                            error.message
+                        );
+
+                    } else {
+
+                        console.log(
+                            '[Supabase] Temperature saved'
+                        );
+
+                    }
+
+                })
+                .catch((error) => {
 
                     console.error(
                         '[Supabase] Temperature Error:',
                         error.message
                     );
 
-                } else {
+                });
 
-                    console.log(
-                        '[Supabase] Temperature saved'
-                    );
-
-                }
-
-            } catch (error) {
-
-                console.error(
-                    '[Supabase] Error:',
-                    error.message
-                );
-
-            }
-
+            return;
         }
 
-
         // ==================================================
-        // 4. ESP32 ONLINE
+        // ESP32 ONLINE
         // ==================================================
 
-        else if (data.type === 'esp32_online') {
+        if (data.type === 'esp32_online') {
 
-            console.log('[ESP32] Online');
+            console.log(
+                '[ESP32] Online'
+            );
 
+            return;
         }
 
-
         // ==================================================
-        // 5. STATUS
+        // STATUS
         // ==================================================
 
-        else if (data.type === 'status') {
+        if (data.type === 'status') {
 
-            console.log('[STATUS] Relay status received');
+            console.log(
+                '[STATUS] Relay status received'
+            );
 
+            return;
         }
 
-
         // ==================================================
-        // 6. MODE STATUS
+        // MODE STATUS
         // ==================================================
 
-        else if (data.type === 'mode_status') {
+        if (data.type === 'mode_status') {
 
             console.log(
                 '[MODE]',
                 data.mode
             );
 
+            return;
         }
 
-
         // ==================================================
-        // 7. PING
+        // PING
         // ==================================================
 
-        else if (data.type === 'ping') {
+        if (data.type === 'ping') {
 
-            console.log('[WebSocket] Ping');
+            console.log(
+                '[WebSocket] Ping'
+            );
 
+            return;
         }
 
     });
 
-
-    // ------------------------------------------------
-    // Client Disconnect
-    // ------------------------------------------------
+    // ==================================================
+    // CLIENT DISCONNECT
+    // ==================================================
 
     ws.on('close', () => {
 
-        console.log('[WebSocket] Client disconnected');
+        console.log(
+            '[WebSocket] Client disconnected'
+        );
 
     });
 
-
-    // ------------------------------------------------
-    // Error
-    // ------------------------------------------------
+    // ==================================================
+    // CLIENT ERROR
+    // ==================================================
 
     ws.on('error', (error) => {
 
@@ -291,9 +365,8 @@ wss.on('connection', (ws) => {
 
 });
 
-
 // ==================================================
-// WebSocket Server Error
+// WEBSOCKET SERVER ERROR
 // ==================================================
 
 wss.on('error', (error) => {
@@ -305,9 +378,8 @@ wss.on('error', (error) => {
 
 });
 
-
 // ==================================================
-// Start Server
+// START SERVER
 // ==================================================
 
 server.listen(port, () => {
@@ -317,4 +389,3 @@ server.listen(port, () => {
     );
 
 });
-```
